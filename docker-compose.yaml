@@ -1,0 +1,17 @@
+version: "3"
+services:
+  db:
+    image: postgres:12
+    environment:
+      POSTGRES_HOST_AUTH_METHOD: trust
+    ports:
+      - "5432:5432"
+  db_test:
+    build:
+      context: .
+      dockerfile: Dockerfile.test
+    environment:
+      DD_DATABASE_PARAMS: host=db user=postgres port=5432
+    depends_on:
+      - db
+    command: ./db_test.cargo.bin --test-threads=1
