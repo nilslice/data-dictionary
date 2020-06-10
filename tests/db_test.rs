@@ -1,52 +1,19 @@
-use data_dictionary::db::{rand, Db, CHARACTER_SET};
+mod util;
+
+use data_dictionary::db::{rand, CHARACTER_SET};
 use data_dictionary::dict::{Classification, Compression, Encoding};
-use data_dictionary::error::Error;
 use data_dictionary::service::DataService;
-
 use uuid::Uuid;
-
-mod migrate {
-    use refinery::embed_migrations as embed;
-    embed!("migrations");
-}
-
-fn reset_db(conn: &mut Db) -> Result<(), Error> {
-    clear_db(conn)?;
-    migrate_db(conn)?;
-
-    Ok(())
-}
-
-fn migrate_db(conn: &mut Db) -> Result<(), Error> {
-    migrate::migrations::runner()
-        .run(&mut conn.client)
-        .map_err(|e| Error::Generic(Box::new(e)))?;
-
-    Ok(())
-}
-
-fn clear_db(conn: &mut Db) -> Result<(), Error> {
-    conn.client
-        .batch_execute(include_str!("sql/drop_all.sql"))
-        .map_err(|e| Error::Generic(Box::new(e)))
-}
-
-fn new_test_db() -> Result<Db, Error> {
-    let mut db = Db::connect(None)?;
-    reset_db(&mut db)?;
-
-    Ok(db)
-}
 
 #[test]
 fn try_clear_db() {
-    let mut db = new_test_db().unwrap();
-    clear_db(&mut db).unwrap();
+    let mut db = util::new_test_db().unwrap();
+    util::clear_db(&mut db).unwrap();
 }
 
 #[test]
 fn test_dataset() {
-    let mut db = new_test_db().unwrap();
+    let mut db = util::new_test_db().unwrap();
 
     // create a manager
     let email = format!("{}@recurly.com", rand(10, CHARACTER_SET.into()));
@@ -69,7 +36,7 @@ fn test_dataset() {
 
 #[test]
 fn test_manager() {
-    let mut db = new_test_db().unwrap();
+    let mut db = util::new_test_db().unwrap();
 
     // insert a manager using an email and password
     let email = format!("{}@recurly.com", rand(10, CHARACTER_SET.into()));

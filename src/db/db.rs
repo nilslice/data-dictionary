@@ -47,7 +47,10 @@ fn test_rand() {
 impl Db {
     pub fn connect(params: Option<String>) -> Result<Self, Error> {
         let client = Client::connect(
-            &params.unwrap_or("host=localhost user=postgres port=5432".into()),
+            &params.unwrap_or(
+                env::var("DD_DATABASE_PARAMS")
+                    .unwrap_or("host=127.0.0.1 user=postgres port=5432".into()),
+            ),
             NoTls,
         )?;
         Ok(Db { client })
