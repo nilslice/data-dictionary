@@ -1,0 +1,17 @@
+[package]
+name = "data-dictionary"
+version = "0.1.0"
+authors = ["Steve Manuel <smanuel@recurly.com>"]
+edition = "2018"
+
+[dependencies]
+postgres = { version = "0.17.3", features = ["with-chrono-0_4", "with-uuid-0_8"] }
+tokio-postgres = "0.5.4"
+postgres-types = { version = "0.1.1", features = ["derive"] }
+uuid = { version = "0.8.1", features = ["v4"] }
+serde = "1.0.111"
+chrono = { version = "0.4.11", features = ["serde"] }
+refinery = { version = "0.3.0", features = ["postgres"] }
+log = "0.4.8"
+rand = "0.7.3"
+argon2rs = "0.2.5"

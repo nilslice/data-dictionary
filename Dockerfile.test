@@ -1,0 +1,18 @@
+FROM rust:1.44.0-slim-buster AS test-build
+WORKDIR /test-build
+COPY . .
+RUN cargo build --tests
+RUN ls target/debug/
+RUN ./target/debug/data-dictionary
+
+FROM postgres:12
+WORKDIR /test-run
+COPY --from=test-build /test-build/target/debug/ .
+COPY --from=test-build /test-build/migrations ./migrations
+COPY --from=test-build /test-build/tests/sql ./sql
+RUN ls
+
+ENV DD_TESTS_DIR "tests"
+RUN rm *.d
+RUN TEST_BINARY=$(ls db_test-*) && echo $TEST_BINARY
+RUN ./${TEST_BINARY}
