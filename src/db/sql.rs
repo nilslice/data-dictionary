@@ -5,13 +5,14 @@ pub const REGISTER_DATASET: &str = r#"
 "#;
 
 pub const FIND_DATASET: &str = r#"
-    SELECT dataset_id, dataset_name, manager_id, dataset_compression, dataset_encoding, dataset_classification, created_at, updated_at
+    SELECT dataset_id, dataset_name, manager_id, dataset_compression, dataset_encoding, dataset_classification, dataset_desc, created_at, updated_at
     FROM datasets
-    WHERE name = $1
+    WHERE dataset_name = $1
 "#;
 
 pub const LIST_DATASETS: &str = r#"
-    SELECT dataset_id, dataset_name, manager_id, dataset_compression, dataset_encoding, dataset_classification, created_at, updated_at
+    SELECT dataset_id, dataset_name, manager_id, dataset_compression, dataset_encoding, dataset_classification, dataset_desc, created_at, updated_at
+    ORDER BY created_at ASC
     FROM datasets
 "#;
 
@@ -48,7 +49,7 @@ pub const FIND_MANAGER: &str = r#"
 "#;
 
 pub const MANAGED_DATASETS: &str = r#"
-    SELECT dataset_id, dataset_name, datasets.manager_id, dataset_compression, dataset_encoding, dataset_classification, datasets.created_at, datasets.updated_at
+    SELECT dataset_id, dataset_name, datasets.manager_id, dataset_compression, dataset_encoding, dataset_classification, dataset_desc, datasets.created_at, datasets.updated_at
     FROM datasets
     JOIN managers ON managers.manager_id = datasets.manager_id
     WHERE managers.api_key = $1

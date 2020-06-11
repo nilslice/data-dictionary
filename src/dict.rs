@@ -30,7 +30,7 @@ pub struct Manager {
 /// may be used, compared with a remote database server when deployed.
 impl Manager {
     /// Inserts a manager record into the database, where the `email` field must be unique.
-    fn _register(
+    pub fn register(
         svc: &mut impl DataService,
         email: impl AsRef<str>,
         password: impl AsRef<str>,
@@ -40,13 +40,13 @@ impl Manager {
     }
 
     /// Retrieves a manager record from the database, if one is found.
-    fn _find(svc: &mut impl DataService, api_key: Uuid) -> Result<Manager, Error> {
+    pub fn _find(svc: &mut impl DataService, api_key: Uuid) -> Result<Manager, Error> {
         info!("finding manager by api key: {}", api_key);
         svc.find_manager(&api_key)
     }
 
     /// Validates that a manager's credentials are valid.
-    fn _authenticate(
+    pub fn authenticate(
         svc: &mut impl DataService,
         email: impl AsRef<str>,
         password: impl AsRef<str>,
@@ -56,7 +56,7 @@ impl Manager {
     }
 
     /// Inserts a dataset record into the database, where the `name` field must be unique.
-    fn _register_dataset(
+    pub fn register_dataset(
         &self,
         svc: &mut impl DataService,
         name: impl AsRef<str>,
@@ -81,7 +81,7 @@ impl Manager {
     }
 
     /// Retrieves all datasets managed by the current manager.
-    fn _datasets(&self, svc: &mut impl DataService) -> Result<Vec<Dataset>, Error> {
+    pub fn datasets(&self, svc: &mut impl DataService) -> Result<Vec<Dataset>, Error> {
         info!("listing datasets managed by: {}", self.api_key);
         svc.manager_datasets(&self.api_key)
     }
@@ -149,19 +149,19 @@ pub struct Dataset {
 /// may be used, compared with a remote database server when deployed.
 impl Dataset {
     /// Retrieves a Dataset record from the database, if one is found.
-    fn _find(svc: &mut impl DataService, name: impl AsRef<str>) -> Result<Dataset, Error> {
+    pub fn find(svc: &mut impl DataService, name: impl AsRef<str>) -> Result<Dataset, Error> {
         info!("finding dataset: {}", name.as_ref());
         svc.find_dataset(name.as_ref())
     }
 
     /// Retrieves all datasets from the database.
-    fn _list(svc: &mut impl DataService) -> Result<Vec<Dataset>, Error> {
+    pub fn _list(svc: &mut impl DataService) -> Result<Vec<Dataset>, Error> {
         info!("listing all datasets");
         svc.list_datasets()
     }
 
     /// Inserts a partition into the database, using the current dataset as its reference.
-    fn _register_partition(
+    pub fn register_partition(
         &self,
         svc: &mut impl DataService,
         name: impl AsRef<str>,
@@ -175,7 +175,7 @@ impl Dataset {
     }
 
     /// Retrieves a partition based on the name provided, within the current dataset.
-    fn _partition(
+    pub fn partition(
         &self,
         svc: &mut impl DataService,
         name: impl AsRef<str>,
@@ -188,7 +188,7 @@ impl Dataset {
         svc.find_partition(&self, name.as_ref())
     }
 
-    fn _partition_range(
+    pub fn _partition_range(
         self,
         svc: impl DataService,
         params: &RangeParams,
@@ -201,12 +201,12 @@ impl Dataset {
     }
 
     /// Retrieves the "latest" partition for the current dataset.
-    fn _latest_partition(&self, svc: &mut impl DataService) -> Result<Partition, Error> {
-        self._partition(svc, PARTITION_LATEST)
+    pub fn _latest_partition(&self, svc: &mut impl DataService) -> Result<Partition, Error> {
+        self.partition(svc, PARTITION_LATEST)
     }
 
     /// Retrieves all partitions for the current dataset.
-    fn _partitions(&self, svc: &mut impl DataService) -> Result<Vec<Partition>, Error> {
+    pub fn _partitions(&self, svc: &mut impl DataService) -> Result<Vec<Partition>, Error> {
         info!("listing all partitions for dataset: {}", &self.name);
         svc.list_partitions(&self)
     }
