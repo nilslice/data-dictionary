@@ -2,5 +2,6 @@ FROM rust:1.44.0-slim-buster AS test-build
 WORKDIR /test-build
 RUN apt-get update && apt-get install -y jq
 COPY . .
-RUN DB_TEST_BIN=$(cargo build --tests --message-format=json | jq 'select(.target.name=="db_test") | .filenames[0]' | xargs) \
-    && mv ${DB_TEST_BIN} ./db_test.cargo.bin
+ENV BUILD_ARTIFACTS=test_artifacts.json
+RUN cargo build --tests --message-format=json > ${BUILD_ARTIFACTS}
+RUN mv $(jq 'select(.target.name=="db_test") | select(.filenames[0] != null) | .executable' ${BUILD_ARTIFACTS} | xargs) db_test.cargo.bin

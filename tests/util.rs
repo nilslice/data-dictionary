@@ -1,4 +1,4 @@
-use data_dictionary::db::Db;
+use data_dictionary::db::{rand, Db, CHARACTER_SET};
 use data_dictionary::error::Error;
 
 mod migrate {
@@ -32,4 +32,26 @@ pub fn new_test_db() -> Result<Db, Error> {
     reset_db(&mut db)?;
 
     Ok(db)
+}
+
+fn rand_valid_email() -> String {
+    format!("{}@recurly.com", rand(6, CHARACTER_SET.into()))
+}
+
+fn rand_password() -> String {
+    rand(20, CHARACTER_SET.into())
+}
+
+pub enum Rand {
+    Email,
+    Password,
+    String(usize),
+}
+
+pub fn get_rand(of: Rand) -> String {
+    match of {
+        Rand::Email => rand_valid_email(),
+        Rand::Password => rand_password(),
+        Rand::String(s) => rand(s, CHARACTER_SET.into()),
+    }
 }
