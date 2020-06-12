@@ -1,7 +1,6 @@
 mod util;
-use util::Rand::{Email, Password};
+use util::Rand::{Email, PartitionName, Password, String};
 
-use data_dictionary::db::{rand, CHARACTER_SET};
 use data_dictionary::dict::{Classification, Compression, Encoding};
 use data_dictionary::dict::{Dataset, Manager};
 use data_dictionary::service::DataService;
@@ -19,26 +18,46 @@ fn test_dataset() {
     let mut db = util::new_test_db().unwrap();
 
     // create a manager
-    let email = format!("{}@recurly.com", rand(10, CHARACTER_SET.into()));
-    let password = "test_password";
+    let email = util::get_rand(Email);
+    let password = util::get_rand(Password);
     let manager = db.register_manager(&email, &password).unwrap();
 
+    let dataset_name: &str = &util::get_rand(String(18));
+    let dataset_desc: &str = &util::get_rand(String(42));
     // create a dataset
-    let dataset = db
-        .register_dataset(
-            &manager,
-            "test_dataset",
-            Compression::None,
-            Encoding::Json,
-            Classification::Sensitive,
-            "this is the test dataset, used for testing datasets",
-        )
-        .unwrap();
-    println!("dataset: {:?}", dataset);
+    let dataset_result = db.register_dataset(
+        &manager,
+        dataset_name,
+        Compression::None,
+        Encoding::Json,
+        Classification::Sensitive,
+        dataset_desc,
+    );
+    assert!(dataset_result.is_ok());
+    let dataset = dataset_result.unwrap();
+    assert_ne!(dataset.id, 0);
+    assert_eq!(dataset.manager_id, manager.id);
+    assert_eq!(dataset.name, dataset_name);
+    assert_eq!(dataset.description, dataset_desc);
+
+    // test failure when dataset has no partitions
+    let latest_result = dataset.latest_partition(&mut db);
+    assert!(latest_result.is_err());
+
+    // add a partition and validate latest partition exists
+    let partition_name = util::get_rand(String(20));
+    let partition_result = dataset.register_partition(&mut db, partition_name);
+    assert!(partition_result.is_ok());
+    let partition = partition_result.unwrap();
+    assert_ne!(partition.id, 0);
+    let latest_result = dataset.latest_partition(&mut db);
+    assert!(latest_result.is_ok());
+    let latest = latest_result.unwrap();
+    assert_eq!(latest.id, partition.id);
 }
 
 #[test]
-fn test_lib() {
+fn test_module_integration() {
     let mut db = util::new_test_db().unwrap();
 
     // create a manager
@@ -54,29 +73,33 @@ fn test_lib() {
     assert!(Manager::authenticate(&mut db, email, "invalid_password").is_err());
 
     let dataset_name = "test_dataset_name";
-    let description = "the description of the dataset for testing.";
+    let dataset_desc = "the description of the dataset for testing.";
     // create a dataset for a manager
-    let dataset = manager
-        .register_dataset(
-            &mut db,
-            dataset_name,
-            Compression::None,
-            Encoding::Protobuf,
-            Classification::Sensitive,
-            description,
-        )
-        .unwrap();
+    let dataset_result = manager.register_dataset(
+        &mut db,
+        dataset_name,
+        Compression::None,
+        Encoding::Protobuf,
+        Classification::Sensitive,
+        dataset_desc,
+    );
+    assert!(dataset_result.is_ok());
+    let dataset = dataset_result.unwrap();
+    assert_ne!(dataset.id, 0);
+    assert_eq!(dataset.manager_id, manager.id);
+    assert_eq!(dataset.name, dataset_name);
+    assert_eq!(dataset.description, dataset_desc);
 
     // find the dataset
     let dataset_result = Dataset::find(&mut db, dataset_name);
     assert!(dataset_result.is_ok());
     let dataset = dataset_result.unwrap();
     assert_ne!(dataset.id, 0);
-    assert_eq!(dataset.description, description);
+    assert_eq!(dataset.description, dataset_desc);
 
-    let partition_name = "test_partition_of_test_dataset-2020-06-10.test_dataset.pb";
+    let partition_name = util::get_rand(PartitionName(Encoding::Protobuf, Compression::None));
     // add a partition to the dataset
-    let partition_result = dataset.register_partition(&mut db, partition_name);
+    let partition_result = dataset.register_partition(&mut db, &partition_name);
     assert!(partition_result.is_ok());
     let partition = partition_result.unwrap();
     assert_ne!(partition.id, 0);
@@ -84,7 +107,10 @@ fn test_lib() {
     assert_eq!(partition.name, partition_name);
 
     // find the partition, expect to fail with no matching partition name
-    let partition_result = dataset.partition(&mut db, "not_the_partition_name.tar.gz");
+    let partition_result = dataset.partition(
+        &mut db,
+        &util::get_rand(PartitionName(Encoding::Csv, Compression::Zip)),
+    );
     assert!(partition_result.is_err());
 
     // sucessfully find the partition

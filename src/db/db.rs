@@ -142,6 +142,11 @@ impl From<&Row> for Manager {
         }
     }
 }
+#[derive(Debug)]
+enum PartitionQuery {
+    Named,
+    Latest,
+}
 
 impl DataService for Db {
     fn register_dataset(
@@ -169,6 +174,7 @@ impl DataService for Db {
             )?
             .into())
     }
+
     fn find_dataset(&mut self, name: impl AsRef<str>) -> Result<Dataset, Error> {
         let stmt = self.client.prepare(sql::FIND_DATASET)?;
         Ok(self.client.query_one(&stmt, &[&name.as_ref()])?.into())
@@ -189,6 +195,11 @@ impl DataService for Db {
         dataset: &Dataset,
         parition_name: impl AsRef<str>,
     ) -> Result<Partition, Error> {
+        info!(
+            "register_partition: dataset.id={} partition_name={}",
+            dataset.id,
+            parition_name.as_ref()
+        );
         let stmt = self.client.prepare(sql::REGISTER_PARTITION)?;
         Ok(self
             .client
@@ -201,16 +212,22 @@ impl DataService for Db {
         dataset: &Dataset,
         partition_name: impl AsRef<str>,
     ) -> Result<Partition, Error> {
-        let mut query_params: (&str, &[&(dyn postgres::types::ToSql + Sync)]) = (
-            sql::FIND_PARTITION,
-            &[&partition_name.as_ref(), &dataset.id],
-        );
+        let mut sql_querytype: (&str, PartitionQuery) =
+            (sql::FIND_PARTITION, PartitionQuery::Named);
+
         if partition_name.as_ref() == PARTITION_LATEST {
-            query_params.0 = sql::FIND_PARTITION_LATEST;
+            sql_querytype.0 = sql::FIND_PARTITION_LATEST;
+            sql_querytype.1 = PartitionQuery::Latest;
         }
 
-        let stmt = self.client.prepare(query_params.0)?;
-        Ok(self.client.query_one(&stmt, query_params.1)?.into())
+        let stmt = self.client.prepare(sql_querytype.0)?;
+        return match sql_querytype.1 {
+            PartitionQuery::Named => Ok(self
+                .client
+                .query_one(&stmt, &[&partition_name.as_ref(), &dataset.id])?
+                .into()),
+            PartitionQuery::Latest => Ok(self.client.query_one(&stmt, &[&dataset.id])?.into()),
+        };
     }
 
     fn range_partitions(

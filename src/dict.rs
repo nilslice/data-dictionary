@@ -201,7 +201,7 @@ impl Dataset {
     }
 
     /// Retrieves the "latest" partition for the current dataset.
-    pub fn _latest_partition(&self, svc: &mut impl DataService) -> Result<Partition, Error> {
+    pub fn latest_partition(&self, svc: &mut impl DataService) -> Result<Partition, Error> {
         self.partition(svc, PARTITION_LATEST)
     }
 
