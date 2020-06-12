@@ -19,6 +19,7 @@ CREATE TYPE classification_t AS ENUM (
 );
 
 CREATE TYPE encoding_t AS ENUM (
+    'plaintext',
     'json',
     'ndjson',
     'csv',

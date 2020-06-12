@@ -28,7 +28,7 @@ fn test_dataset() {
     let dataset_result = db.register_dataset(
         &manager,
         dataset_name,
-        Compression::None,
+        Compression::Uncompressed,
         Encoding::Json,
         Classification::Sensitive,
         dataset_desc,
@@ -78,7 +78,7 @@ fn test_module_integration() {
     let dataset_result = manager.register_dataset(
         &mut db,
         dataset_name,
-        Compression::None,
+        Compression::Uncompressed,
         Encoding::Protobuf,
         Classification::Sensitive,
         dataset_desc,
@@ -97,7 +97,8 @@ fn test_module_integration() {
     assert_ne!(dataset.id, 0);
     assert_eq!(dataset.description, dataset_desc);
 
-    let partition_name = util::get_rand(PartitionName(Encoding::Protobuf, Compression::None));
+    let partition_name =
+        util::get_rand(PartitionName(Encoding::Protobuf, Compression::Uncompressed));
     // add a partition to the dataset
     let partition_result = dataset.register_partition(&mut db, &partition_name);
     assert!(partition_result.is_ok());

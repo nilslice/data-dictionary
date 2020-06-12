@@ -50,6 +50,7 @@ fn rand_password() -> String {
 fn rand_partition_name(enc: Encoding, comp: Compression) -> String {
     let ts = chrono::Utc::now().to_string();
     let enc = match enc {
+        Encoding::PlainText => "txt",
         Encoding::Json => "json",
         Encoding::NdJson => "ndjson",
         Encoding::Csv => "csv",
@@ -57,7 +58,7 @@ fn rand_partition_name(enc: Encoding, comp: Compression) -> String {
         Encoding::Protobuf => "pb",
     };
     let comp = match comp {
-        Compression::None => "",
+        Compression::Uncompressed => "",
         Compression::Tar => "tar.gz",
         Compression::Zip => "zip",
     };
@@ -68,7 +69,7 @@ fn rand_partition_name(enc: Encoding, comp: Compression) -> String {
 
 #[test]
 fn test_rand_partition_name() {
-    assert!(rand_partition_name(Encoding::Protobuf, Compression::None).ends_with(".pb"));
+    assert!(rand_partition_name(Encoding::Protobuf, Compression::Uncompressed).ends_with(".pb"));
     assert!(rand_partition_name(Encoding::Csv, Compression::Tar).ends_with(".csv.tar.gz"));
 }
 

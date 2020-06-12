@@ -91,6 +91,8 @@ impl Manager {
 #[derive(Debug, FromSql, ToSql)]
 #[postgres(name = "encoding_t")]
 pub enum Encoding {
+    #[postgres(name = "plaintext")]
+    PlainText,
     #[postgres(name = "json")]
     Json,
     #[postgres(name = "ndjson")]
@@ -108,7 +110,7 @@ pub enum Encoding {
 #[postgres(name = "compression_t")]
 pub enum Compression {
     #[postgres(name = "uncompressed")]
-    None,
+    Uncompressed,
     #[postgres(name = "zip")]
     Zip,
     #[postgres(name = "tar")]
