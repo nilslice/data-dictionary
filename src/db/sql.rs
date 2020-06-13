@@ -12,8 +12,8 @@ pub const FIND_DATASET: &str = r#"
 
 pub const LIST_DATASETS: &str = r#"
     SELECT dataset_id, dataset_name, manager_id, dataset_compression, dataset_encoding, dataset_classification, dataset_desc, created_at, updated_at
-    ORDER BY created_at ASC
     FROM datasets
+    ORDER BY created_at ASC
 "#;
 
 pub const REGISTER_PARTITION: &str = r#"
@@ -43,7 +43,7 @@ pub const LIST_PARTITIONS: &str = r#"
 "#;
 
 pub const FIND_MANAGER: &str = r#"
-    SELECT manager_id, manager_email, api_key, is_admin, created_at, updated_at
+    SELECT manager_id, manager_email, manager_hash, manager_salt, api_key, is_admin, created_at, updated_at
     FROM managers
     WHERE api_key = $1
 "#;

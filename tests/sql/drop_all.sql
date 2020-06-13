@@ -6,5 +6,3 @@ DROP TYPE IF EXISTS compression_t;
 DROP TYPE IF EXISTS encoding_t;
 DROP TYPE IF EXISTS classification_t;
 DROP FUNCTION IF EXISTS on_update_set_timestamp;
-DROP SCHEMA IF EXISTS public CASCADE;
-CREATE SCHEMA IF NOT EXISTS public;

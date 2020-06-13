@@ -40,7 +40,7 @@ impl Manager {
     }
 
     /// Retrieves a manager record from the database, if one is found.
-    pub fn _find(svc: &mut impl DataService, api_key: Uuid) -> Result<Manager, Error> {
+    pub fn find(svc: &mut impl DataService, api_key: Uuid) -> Result<Manager, Error> {
         info!("finding manager by api key: {}", api_key);
         svc.find_manager(&api_key)
     }
@@ -157,7 +157,7 @@ impl Dataset {
     }
 
     /// Retrieves all datasets from the database.
-    pub fn _list(svc: &mut impl DataService) -> Result<Vec<Dataset>, Error> {
+    pub fn list(svc: &mut impl DataService) -> Result<Vec<Dataset>, Error> {
         info!("listing all datasets");
         svc.list_datasets()
     }
@@ -190,6 +190,8 @@ impl Dataset {
         svc.find_partition(&self, name.as_ref())
     }
 
+    /// Retrieves a set of partitions based on the range paramaters provided, optionally using any
+    /// combination of start/end times, result count, and offset values.
     pub fn _partition_range(
         self,
         svc: impl DataService,
@@ -208,7 +210,7 @@ impl Dataset {
     }
 
     /// Retrieves all partitions for the current dataset.
-    pub fn _partitions(&self, svc: &mut impl DataService) -> Result<Vec<Partition>, Error> {
+    pub fn partitions(&self, svc: &mut impl DataService) -> Result<Vec<Partition>, Error> {
         info!("listing all partitions for dataset: {}", &self.name);
         svc.list_partitions(&self)
     }
@@ -216,7 +218,7 @@ impl Dataset {
 
 /// A Partition is a partial dataset, containing a subset of data. Each partition within a Dataset
 /// must follow the same schema, compression, and encoding.
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct Partition {
     pub id: i32,
     pub name: String,
