@@ -226,6 +226,11 @@ fn test_module_integration() {
         all_added_partition_ids.sort(),
         known_added_partitions.sort()
     );
+
+    // add a partition with the reserved name "latest", expect it to fail
+    let bad_partition_result =
+        dataset.register_partition(&mut test_db.db, data_dictionary::dict::PARTITION_LATEST);
+    assert!(bad_partition_result.is_err());
 }
 
 #[test]

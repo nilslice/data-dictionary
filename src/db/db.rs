@@ -10,7 +10,7 @@ use crate::error::Error;
 use crate::service::DataService;
 
 use argon2rs;
-use log::info;
+use log::error;
 use postgres::{row::Row, Client, NoTls};
 use rand::Rng;
 use uuid::Uuid;
@@ -193,17 +193,23 @@ impl DataService for Db {
     fn register_partition(
         &mut self,
         dataset: &Dataset,
-        parition_name: impl AsRef<str>,
+        partition_name: impl AsRef<str>,
     ) -> Result<Partition, Error> {
-        info!(
-            "register_partition: dataset.id={} partition_name={}",
-            dataset.id,
-            parition_name.as_ref()
-        );
+        if partition_name.as_ref() == PARTITION_LATEST {
+            error!(
+                "attempt to register partition with name 'latest' for dataset name={} id={}",
+                dataset.name, dataset.id
+            );
+
+            return Err(Error::InputValidation(
+                "cannot use reserved name 'latest' for partition".into(),
+            ));
+        }
+
         let stmt = self.client.prepare(sql::REGISTER_PARTITION)?;
         Ok(self
             .client
-            .query_one(&stmt, &[&parition_name.as_ref(), &dataset.id])?
+            .query_one(&stmt, &[&partition_name.as_ref(), &dataset.id])?
             .into())
     }
 
@@ -262,7 +268,7 @@ impl DataService for Db {
                     )));
                 }
             }
-            Err(e) => info!(
+            Err(e) => error!(
                 "skipping manager email domain validation, 'DD_MANAGER_EMAIL_DOMAIN' {}",
                 e
             ),
