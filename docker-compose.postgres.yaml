@@ -14,4 +14,4 @@ services:
       DD_DATABASE_PARAMS: host=db user=postgres port=5432
     depends_on:
       - db
-    command: ./db_test.cargo.bin --test-threads=1
+    command: ./db_test.cargo.bin
