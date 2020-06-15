@@ -16,22 +16,9 @@ impl Drop for TestDb {
     }
 }
 
-mod migrate {
-    use refinery::embed_migrations as embed;
-    embed!("migrations");
-}
-
 pub fn reset_db(conn: &mut TestDb) -> Result<(), Error> {
     clear_db(conn)?;
-    migrate_db(conn)?;
-    Ok(())
-}
-
-pub fn migrate_db(conn: &mut TestDb) -> Result<(), Error> {
-    migrate::migrations::runner()
-        .run(&mut conn.db.client)
-        .map_err(|e| Error::Generic(Box::new(e)))?;
-
+    conn.db.migrate()?;
     Ok(())
 }
 
