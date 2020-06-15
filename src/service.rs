@@ -23,7 +23,8 @@ pub trait DataService {
     fn register_partition(
         &mut self,
         dataset: &Dataset,
-        parition_name: impl AsRef<str>,
+        partition_name: impl AsRef<str>,
+        partition_url: impl AsRef<str>,
     ) -> Result<Partition, Error>;
 
     fn find_partition(

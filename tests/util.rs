@@ -1,5 +1,5 @@
 use data_dictionary::db::{rand, Db, CHARACTER_SET};
-use data_dictionary::dict::{Compression, Encoding};
+use data_dictionary::dict::{Classification, Compression, Encoding, FileExt};
 use data_dictionary::error::Error;
 
 pub struct TestDb {
@@ -60,20 +60,7 @@ fn rand_password() -> String {
 
 fn rand_partition_name(enc: Encoding, comp: Compression) -> String {
     let ts = chrono::Utc::now().to_string();
-    let enc = match enc {
-        Encoding::PlainText => "txt",
-        Encoding::Json => "json",
-        Encoding::NdJson => "ndjson",
-        Encoding::Csv => "csv",
-        Encoding::Tsv => "tsv",
-        Encoding::Protobuf => "pb",
-    };
-    let comp = match comp {
-        Compression::Uncompressed => "",
-        Compression::Tar => "tar.gz",
-        Compression::Zip => "zip",
-    };
-    format!("partition-{}.{}.{}", ts, enc, comp)
+    format!("partition-{}.{}.{}", ts, enc.to_ext(), comp.to_ext())
         .trim_end_matches(".")
         .into()
 }
@@ -82,6 +69,23 @@ fn rand_partition_name(enc: Encoding, comp: Compression) -> String {
 fn test_rand_partition_name() {
     assert!(rand_partition_name(Encoding::Protobuf, Compression::Uncompressed).ends_with(".pb"));
     assert!(rand_partition_name(Encoding::Csv, Compression::Tar).ends_with(".csv.tar.gz"));
+}
+
+fn rand_partition_url(enc: Encoding, comp: Compression, class: Classification) -> String {
+    format!(
+        "cloud://org.datasets.dev.{}/{}/{}",
+        class,
+        get_rand(Rand::String(20)),
+        rand_partition_name(enc, comp)
+    )
+}
+
+#[test]
+fn test_rand_url() {
+    println!(
+        "{}",
+        rand_partition_url(Encoding::Json, Compression::Tar, Classification::Sensitive)
+    );
 }
 
 fn rand_schema_name() -> String {
@@ -94,6 +98,7 @@ pub enum Rand {
     String(usize),
     PartitionName(Encoding, Compression),
     SchemaName,
+    PartitionUrl(Encoding, Compression, Classification),
 }
 
 pub fn get_rand(of: Rand) -> String {
@@ -103,5 +108,6 @@ pub fn get_rand(of: Rand) -> String {
         Rand::String(s) => rand(s, CHARACTER_SET.into()),
         Rand::PartitionName(enc, comp) => rand_partition_name(enc, comp),
         Rand::SchemaName => rand_schema_name(),
+        Rand::PartitionUrl(enc, comp, class) => rand_partition_url(enc, comp, class),
     }
 }

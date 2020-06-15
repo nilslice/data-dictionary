@@ -105,6 +105,39 @@ pub enum Encoding {
     Protobuf,
 }
 
+impl std::fmt::Display for Encoding {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", format!("{:?}", self).to_lowercase())
+    }
+}
+
+#[test]
+fn test_display_encoding() {
+    assert_eq!("plaintext", format!("{}", Encoding::PlainText));
+    assert_eq!("json", format!("{}", Encoding::Json));
+    assert_eq!("ndjson", format!("{}", Encoding::NdJson));
+    assert_eq!("csv", format!("{}", Encoding::Csv));
+    assert_eq!("tsv", format!("{}", Encoding::Tsv));
+    assert_eq!("protobuf", format!("{}", Encoding::Protobuf));
+}
+
+pub trait FileExt {
+    fn to_ext(&self) -> &str;
+}
+
+impl FileExt for Encoding {
+    fn to_ext(&self) -> &str {
+        match self {
+            Encoding::PlainText => "txt",
+            Encoding::Json => "json",
+            Encoding::NdJson => "ndjson",
+            Encoding::Csv => "csv",
+            Encoding::Tsv => "tsv",
+            Encoding::Protobuf => "pb",
+        }
+    }
+}
+
 /// A Compression is used to indicate the type of compression used (if any) within the file(s).
 #[derive(Debug, FromSql, ToSql)]
 #[postgres(name = "compression_t")]
@@ -115,6 +148,29 @@ pub enum Compression {
     Zip,
     #[postgres(name = "tar")]
     Tar,
+}
+
+impl std::fmt::Display for Compression {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", format!("{:?}", self).to_lowercase())
+    }
+}
+
+#[test]
+fn test_display_compression() {
+    assert_eq!("uncompressed", format!("{}", Compression::Uncompressed));
+    assert_eq!("zip", format!("{}", Compression::Zip));
+    assert_eq!("tar", format!("{}", Compression::Tar));
+}
+
+impl FileExt for Compression {
+    fn to_ext(&self) -> &str {
+        match self {
+            Compression::Uncompressed => "",
+            Compression::Tar => "tar.gz",
+            Compression::Zip => "zip",
+        }
+    }
 }
 
 /// A Classification is used to indicate the level of security needed to protect datasets.
@@ -129,6 +185,20 @@ pub enum Classification {
     Private,
     #[postgres(name = "public")]
     Public,
+}
+
+impl std::fmt::Display for Classification {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", format!("{:?}", self).to_lowercase())
+    }
+}
+
+#[test]
+fn test_display_classification() {
+    assert_eq!("confidential", format!("{}", Classification::Confidential));
+    assert_eq!("sensitive", format!("{}", Classification::Sensitive));
+    assert_eq!("private", format!("{}", Classification::Private));
+    assert_eq!("public", format!("{}", Classification::Public));
 }
 
 /// A Dataset is the parent node of partitions, where each dataset is split up into one or many
@@ -167,13 +237,14 @@ impl Dataset {
         &self,
         svc: &mut impl DataService,
         name: impl AsRef<str>,
+        url: impl AsRef<str>,
     ) -> Result<Partition, Error> {
         info!(
             "registering partition '{}' for dataset: {}",
             name.as_ref(),
             &self.name
         );
-        svc.register_partition(&self, name.as_ref())
+        svc.register_partition(&self, name.as_ref(), url.as_ref())
     }
 
     /// Retrieves a partition based on the name provided, within the current dataset.
@@ -222,6 +293,7 @@ impl Dataset {
 pub struct Partition {
     pub id: i32,
     pub name: String,
+    pub url: String,
     pub dataset_id: i32,
     pub created_at: DateTime<Utc>,
     pub updated_at: Option<DateTime<Utc>>,

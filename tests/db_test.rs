@@ -1,5 +1,5 @@
 mod util;
-use util::Rand::{Email, PartitionName, Password, String};
+use util::Rand::{Email, PartitionName, PartitionUrl, Password, String};
 
 use data_dictionary::dict::{Classification, Compression, Encoding};
 use data_dictionary::dict::{Dataset, Manager, Partition};
@@ -71,7 +71,12 @@ fn test_dataset() {
                 util::get_rand(PartitionName(
                     Encoding::PlainText,
                     Compression::Uncompressed
-                ))
+                )),
+                util::get_rand(PartitionUrl(
+                    Encoding::PlainText,
+                    Compression::Uncompressed,
+                    Classification::Sensitive
+                )),
             )
             .is_ok());
     }
@@ -84,8 +89,14 @@ fn test_dataset() {
     assert!(latest_result.is_err());
 
     // add a partition and validate latest partition exists
-    let partition_name = util::get_rand(String(20));
-    let partition_result = dataset.register_partition(&mut test_db.db, partition_name);
+    let partition_name = util::get_rand(PartitionName(Encoding::Protobuf, Compression::Tar));
+    let partition_url = util::get_rand(PartitionUrl(
+        Encoding::Protobuf,
+        Compression::Tar,
+        Classification::Public,
+    ));
+    let partition_result =
+        dataset.register_partition(&mut test_db.db, partition_name, partition_url);
     assert!(partition_result.is_ok());
     let partition = partition_result.unwrap();
     assert_ne!(partition.id, 0);
@@ -143,9 +154,14 @@ fn test_module_integration() {
 
     let partition_name =
         util::get_rand(PartitionName(Encoding::Protobuf, Compression::Uncompressed));
+    let partition_url = util::get_rand(PartitionUrl(
+        Encoding::Protobuf,
+        Compression::Uncompressed,
+        Classification::Private,
+    ));
     // add a partition to the dataset
     let partition = dataset
-        .register_partition(&mut test_db.db, &partition_name)
+        .register_partition(&mut test_db.db, &partition_name, &partition_url)
         .unwrap();
     assert_ne!(partition.id, 0);
     let parition_id = partition.id;
@@ -209,8 +225,13 @@ fn test_module_integration() {
     // add a partition to the new dataset
     let added_partition_name: &str =
         &util::get_rand(PartitionName(Encoding::PlainText, Compression::Zip));
+    let added_partition_url: &str = &util::get_rand(PartitionUrl(
+        Encoding::PlainText,
+        Compression::Zip,
+        Classification::Confidential,
+    ));
     let added_partition = added_dataset
-        .register_partition(&mut test_db.db, added_partition_name)
+        .register_partition(&mut test_db.db, added_partition_name, added_partition_url)
         .unwrap();
     assert_ne!(added_partition.id, 0);
     assert_eq!(added_partition.name, added_partition_name);
@@ -229,6 +250,11 @@ fn test_module_integration() {
         .register_partition(
             &mut test_db.db,
             util::get_rand(PartitionName(Encoding::NdJson, Compression::Tar)),
+            util::get_rand(PartitionUrl(
+                Encoding::NdJson,
+                Compression::Tar,
+                Classification::Public,
+            )),
         )
         .unwrap();
     assert_eq!(
@@ -251,8 +277,15 @@ fn test_module_integration() {
     );
 
     // add a partition with the reserved name "latest", expect it to fail
-    let bad_partition_result =
-        dataset.register_partition(&mut test_db.db, data_dictionary::dict::PARTITION_LATEST);
+    let bad_partition_result = dataset.register_partition(
+        &mut test_db.db,
+        data_dictionary::dict::PARTITION_LATEST,
+        util::get_rand(PartitionUrl(
+            Encoding::Csv,
+            Compression::Uncompressed,
+            Classification::Public,
+        )),
+    );
     assert!(bad_partition_result.is_err());
 }
 
@@ -284,6 +317,11 @@ fn test_range_query() {
             .register_partition(
                 &mut test_db.db,
                 util::get_rand(PartitionName(Encoding::Protobuf, Compression::Tar)),
+                util::get_rand(PartitionUrl(
+                    Encoding::Protobuf,
+                    Compression::Tar,
+                    Classification::Public,
+                )),
             )
             .unwrap();
 
@@ -297,6 +335,8 @@ fn test_range_query() {
     let mut last: &Partition = partitions_all.get(0).unwrap();
     for p in partitions_all.iter().skip(1) {
         assert!(p.created_at > last.created_at);
+        assert_ne!(p.name, "");
+        assert_ne!(p.url, "");
         last = p;
     }
 

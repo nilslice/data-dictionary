@@ -17,19 +17,19 @@ pub const LIST_DATASETS: &str = r#"
 "#;
 
 pub const REGISTER_PARTITION: &str = r#"
-    INSERT INTO partitions (partition_name, dataset_id)
-    VALUES ($1, $2)
-    RETURNING partition_id, partition_name, dataset_id, created_at, updated_at
+    INSERT INTO partitions (partition_name, partition_url, dataset_id)
+    VALUES ($1, $2, $3)
+    RETURNING partition_id, partition_name, partition_url, dataset_id, created_at, updated_at
 "#;
 
 pub const FIND_PARTITION: &str = r#"
-    SELECT partition_id, partition_name, dataset_id, created_at, updated_at
+    SELECT partition_id, partition_name, partition_url, dataset_id, created_at, updated_at
     FROM partitions 
     WHERE partition_name = $1 AND dataset_id = $2
 "#;
 
 pub const FIND_PARTITION_LATEST: &str = r#"
-    SELECT partition_id, partition_name, dataset_id, created_at, updated_at
+    SELECT partition_id, partition_name, partition_url, dataset_id, created_at, updated_at
     FROM partitions 
     WHERE dataset_id = $1
     ORDER BY created_at DESC
@@ -37,7 +37,7 @@ pub const FIND_PARTITION_LATEST: &str = r#"
 "#;
 
 pub const LIST_PARTITIONS: &str = r#"
-    SELECT partition_id, partition_name, dataset_id, created_at, updated_at
+    SELECT partition_id, partition_name, partition_url, dataset_id, created_at, updated_at
     FROM partitions 
     WHERE dataset_id = $1
 "#;

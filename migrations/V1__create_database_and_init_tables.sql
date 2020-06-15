@@ -48,6 +48,7 @@ CREATE TABLE IF NOT EXISTS datasets (
 CREATE TABLE IF NOT EXISTS partitions (
     partition_id SERIAL PRIMARY KEY,
     partition_name VARCHAR(255) NOT NULL,
+    partition_url VARCHAR(255) NOT NULL,
     dataset_id INTEGER NOT NULL REFERENCES datasets(dataset_id),
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),

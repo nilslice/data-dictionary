@@ -106,6 +106,7 @@ impl From<&Row> for Partition {
         Self {
             id: row.get("partition_id"),
             name: row.get("partition_name"),
+            url: row.get("partition_url"),
             dataset_id: row.get("dataset_id"),
             created_at: row.get("created_at"),
             updated_at: row.get("updated_at"),
@@ -118,6 +119,7 @@ impl From<Row> for Partition {
         Self {
             id: row.get("partition_id"),
             name: row.get("partition_name"),
+            url: row.get("partition_url"),
             dataset_id: row.get("dataset_id"),
             created_at: row.get("created_at"),
             updated_at: row.get("updated_at"),
@@ -206,6 +208,7 @@ impl DataService for Db {
         &mut self,
         dataset: &Dataset,
         partition_name: impl AsRef<str>,
+        partition_url: impl AsRef<str>,
     ) -> Result<Partition, Error> {
         if partition_name.as_ref() == PARTITION_LATEST {
             error!(
@@ -221,7 +224,14 @@ impl DataService for Db {
         let stmt = self.client.prepare(sql::REGISTER_PARTITION)?;
         Ok(self
             .client
-            .query_one(&stmt, &[&partition_name.as_ref(), &dataset.id])?
+            .query_one(
+                &stmt,
+                &[
+                    &partition_name.as_ref(),
+                    &partition_url.as_ref(),
+                    &dataset.id,
+                ],
+            )?
             .into())
     }
 

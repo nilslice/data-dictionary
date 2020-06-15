@@ -2,7 +2,7 @@ use crate::dict::RangeParams;
 use postgres::types::ToSql;
 
 const SQL_ALL_PARTITIONS: &str = r#"
-    SELECT partition_id, partition_name, dataset_id, created_at, updated_at
+    SELECT partition_id, partition_name, partition_url, dataset_id, created_at, updated_at
     FROM partitions
     WHERE dataset_id = $1
 "#;
