@@ -33,7 +33,7 @@ pub trait DataService {
     ) -> Result<Partition, Error>;
 
     fn range_partitions(
-        self,
+        &mut self,
         dataset: &Dataset,
         params: &RangeParams,
     ) -> Result<Vec<Partition>, Error>;

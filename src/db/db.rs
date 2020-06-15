@@ -11,9 +11,14 @@ use crate::service::DataService;
 
 use argon2rs;
 use log::error;
-use postgres::{row::Row, Client, NoTls};
+use postgres::{row::Row, types::ToSql, Client, NoTls};
 use rand::Rng;
 use uuid::Uuid;
+
+pub mod migrate {
+    use refinery::embed_migrations as embed;
+    embed!("migrations");
+}
 
 pub struct Db {
     pub client: Client,
@@ -54,6 +59,13 @@ impl Db {
             NoTls,
         )?;
         Ok(Db { client })
+    }
+
+    pub fn migrate(&mut self) -> Result<(), Error> {
+        match migrate::migrations::runner().run(&mut self.client) {
+            Err(e) => Err(Error::Generic(Box::new(e))),
+            _ => Ok(()),
+        }
     }
 }
 
@@ -237,11 +249,24 @@ impl DataService for Db {
     }
 
     fn range_partitions(
-        self,
+        &mut self,
         dataset: &Dataset,
         params: &RangeParams,
     ) -> Result<Vec<Partition>, Error> {
-        range_query::partitions(self.client, params, dataset)
+        let (query, boxed_bindvars) = range_query::partitions(params);
+        let mut bindvars = boxed_bindvars
+            .iter()
+            .map(|v| v.as_ref())
+            .collect::<Vec<&(dyn ToSql + Sync)>>();
+        // prepend the dataset id to the bind vars, since it is used for all range queries
+        bindvars.insert(0, &dataset.id);
+
+        Ok(self
+            .client
+            .query(&query as &str, &bindvars)?
+            .iter()
+            .map(|r| Partition::from(r))
+            .collect())
     }
 
     fn list_partitions(&mut self, dataset: &Dataset) -> Result<Vec<Partition>, Error> {

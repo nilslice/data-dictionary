@@ -192,16 +192,16 @@ impl Dataset {
 
     /// Retrieves a set of partitions based on the range paramaters provided, optionally using any
     /// combination of start/end times, result count, and offset values.
-    pub fn _partition_range(
-        self,
-        svc: impl DataService,
+    pub fn partition_range(
+        &self,
+        svc: &mut impl DataService,
         params: &RangeParams,
     ) -> Result<Vec<Partition>, Error> {
         info!(
             "finding partitions for specified range {:?} to {:?}, count: {:?}, offset: {:?}",
             params.start, params.end, params.count, params.offset
         );
-        svc.range_partitions(&self, params)
+        svc.range_partitions(self, params)
     }
 
     /// Retrieves the "latest" partition for the current dataset.
@@ -228,10 +228,10 @@ pub struct Partition {
 }
 
 /// Params specify how a Dataset's Partition results should be returned.
-#[derive(Debug)]
-pub struct RangeParams<'a> {
+#[derive(Debug, Default)]
+pub struct RangeParams {
     pub start: Option<DateTime<Utc>>,
     pub end: Option<DateTime<Utc>>,
-    pub offset: Option<&'a i32>,
-    pub count: Option<&'a i32>,
+    pub offset: Option<i32>,
+    pub count: Option<i32>,
 }
