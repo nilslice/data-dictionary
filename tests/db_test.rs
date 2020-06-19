@@ -2,7 +2,7 @@ mod util;
 use util::Rand::{Email, PartitionName, PartitionUrl, Password, String};
 
 use data_dictionary::dict::{Classification, Compression, Encoding};
-use data_dictionary::dict::{Dataset, Manager, Partition};
+use data_dictionary::dict::{Dataset, DatasetConfig, Manager, Partition};
 use data_dictionary::service::DataService;
 
 use chrono::{DateTime, Utc};
@@ -34,6 +34,7 @@ fn test_dataset() {
             Compression::Uncompressed,
             Encoding::Json,
             Classification::Sensitive,
+            util::rand_schema(),
             dataset_desc,
         )
         .unwrap();
@@ -60,6 +61,7 @@ fn test_dataset() {
                 Compression::Zip,
                 Encoding::Csv,
                 Classification::Private,
+                util::rand_schema(),
                 util::get_rand(String(100)),
             )
             .unwrap();
@@ -116,8 +118,8 @@ fn test_module_integration() {
     let password: &str = &util::get_rand(Password);
     let manager = Manager::register(&mut test_db.db, email, password).unwrap();
     assert_ne!(manager.id, 0);
-    assert_ne!(manager.hash, vec![]);
-    assert_eq!(manager.email, email.as_ref());
+    assert_ne!(manager.hash.len(), 0);
+    assert_eq!(manager.email, email);
 
     // check manager authentication
     assert!(Manager::authenticate(&mut test_db.db, email, password).is_ok());
@@ -132,16 +134,17 @@ fn test_module_integration() {
     let dataset_name: &str = &util::get_rand(String(10));
     let dataset_desc: &str = &util::get_rand(String(40));
     // create a dataset for a manager
-    let dataset_result = manager.register_dataset(
-        &mut test_db.db,
-        dataset_name,
-        Compression::Uncompressed,
-        Encoding::Protobuf,
-        Classification::Sensitive,
-        dataset_desc,
-    );
-    assert!(dataset_result.is_ok());
-    let dataset = dataset_result.unwrap();
+    let dataset = manager
+        .register_dataset(
+            &mut test_db.db,
+            dataset_name,
+            Compression::Uncompressed,
+            Encoding::Protobuf,
+            Classification::Sensitive,
+            util::rand_schema(),
+            dataset_desc,
+        )
+        .unwrap();
     assert_ne!(dataset.id, 0);
     assert_eq!(dataset.manager_id, manager.id);
     assert_eq!(dataset.name, dataset_name);
@@ -188,6 +191,7 @@ fn test_module_integration() {
             Compression::Tar,
             Encoding::NdJson,
             Classification::Public,
+            util::rand_schema(),
             util::get_rand(String(40)),
         )
         .unwrap();
@@ -306,6 +310,7 @@ fn test_range_query() {
             Compression::Uncompressed,
             Encoding::Tsv,
             Classification::Public,
+            util::rand_schema(),
             util::get_rand(String(50)),
         )
         .unwrap();
@@ -439,7 +444,7 @@ fn test_manager() {
     let registered = test_db.db.register_manager(&email, &password).unwrap();
     assert_ne!(registered.api_key.to_string(), "");
     assert_ne!(registered.api_key, Uuid::nil());
-    assert_ne!(registered.hash, vec![]);
+    assert_ne!(registered.hash.len(), 0);
     assert_ne!(registered.salt, "");
 
     // find the known manager in the database
@@ -469,4 +474,46 @@ fn test_manager() {
     // check that invalid passwords fail authentication
     let invalid = test_db.db.auth_manager(&email, "invalidPassword");
     assert!(invalid.is_err());
+}
+
+use serde_json;
+
+#[test]
+fn test_dataset_from_config() {
+    let mut test_db = util::new_test_db().unwrap();
+    let manager = util::create_manager(&mut test_db).unwrap();
+    let dd: &str = include_str!("json/dd.json");
+    let config: DatasetConfig = serde_json::from_str(dd).unwrap();
+    let dataset = manager
+        .register_dataset(
+            &mut test_db.db,
+            config.name,
+            config.compression,
+            config.encoding,
+            config.classification,
+            config.schema,
+            config.description,
+        )
+        .unwrap();
+
+    assert_ne!(dataset.id, 0);
+    for key_value in &[
+        ("id", "integer"),
+        ("merchant_name", "string"),
+        ("mrr_cents", "integer"),
+        ("churn_rate", "float"),
+        ("subs_gained", "integer"),
+        ("subs_lost", "integer"),
+    ] {
+        assert_eq!(
+            dataset.schema.get(key_value.0).unwrap(),
+            &Some(key_value.1.to_owned())
+        );
+    }
+
+    // find the same dataset in the database and check its values
+    let found = Dataset::find(&mut test_db.db, &dataset.name).unwrap();
+    assert_eq!(found.name, dataset.name);
+    assert_eq!(found.id, dataset.id);
+    assert_eq!(found.schema, dataset.schema);
 }

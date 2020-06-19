@@ -1,4 +1,4 @@
-CREATE SCHEMA IF NOT EXISTS public;
+CREATE EXTENSION IF NOT EXISTS hstore;
 
 CREATE TABLE IF NOT EXISTS managers (
     manager_id SERIAL PRIMARY KEY,
@@ -40,6 +40,7 @@ CREATE TABLE IF NOT EXISTS datasets (
     dataset_encoding encoding_t NOT NULL, 
     dataset_compression compression_t NOT NULL,
     dataset_classification classification_t NOT NULL,
+    dataset_schema hstore NOT NULL,
     manager_id INTEGER NOT NULL REFERENCES managers(manager_id),
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()

@@ -4,7 +4,7 @@ use crate::service::DataService;
 use chrono::{DateTime, Utc};
 use log::info;
 use postgres_types::{FromSql, ToSql};
-
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 /// Defines the special partition name, "latest", which is always the most recently updated
@@ -20,7 +20,7 @@ pub struct Manager {
     pub api_key: Uuid,
     pub admin: bool,
     pub created_at: DateTime<Utc>,
-    pub updated_at: Option<DateTime<Utc>>,
+    pub updated_at: DateTime<Utc>,
     pub salt: String,
     pub hash: Vec<u8>,
 }
@@ -63,6 +63,7 @@ impl Manager {
         compression: Compression,
         encoding: Encoding,
         classification: Classification,
+        schema: DatasetSchema,
         description: impl AsRef<str>,
     ) -> Result<Dataset, Error> {
         info!(
@@ -76,6 +77,7 @@ impl Manager {
             compression,
             encoding,
             classification,
+            schema,
             description,
         )
     }
@@ -88,20 +90,26 @@ impl Manager {
 }
 
 /// An Encoding is used to indicate the data encoding within the file(s).
-#[derive(Debug, FromSql, ToSql)]
+#[derive(Debug, FromSql, ToSql, Serialize, Deserialize)]
 #[postgres(name = "encoding_t")]
 pub enum Encoding {
     #[postgres(name = "plaintext")]
+    #[serde(rename = "plaintext")]
     PlainText,
     #[postgres(name = "json")]
+    #[serde(rename = "json")]
     Json,
     #[postgres(name = "ndjson")]
+    #[serde(rename = "ndjson")]
     NdJson,
     #[postgres(name = "csv")]
+    #[serde(rename = "csv")]
     Csv,
     #[postgres(name = "tsv")]
+    #[serde(rename = "tsv")]
     Tsv,
     #[postgres(name = "protobuf")]
+    #[serde(rename = "protobuf")]
     Protobuf,
 }
 
@@ -139,14 +147,17 @@ impl FileExt for Encoding {
 }
 
 /// A Compression is used to indicate the type of compression used (if any) within the file(s).
-#[derive(Debug, FromSql, ToSql)]
+#[derive(Debug, FromSql, ToSql, Serialize, Deserialize)]
 #[postgres(name = "compression_t")]
 pub enum Compression {
     #[postgres(name = "uncompressed")]
+    #[serde(rename = "uncompressed")]
     Uncompressed,
     #[postgres(name = "zip")]
+    #[serde(rename = "zip")]
     Zip,
     #[postgres(name = "tar")]
+    #[serde(rename = "tar")]
     Tar,
 }
 
@@ -174,16 +185,20 @@ impl FileExt for Compression {
 }
 
 /// A Classification is used to indicate the level of security needed to protect datasets.
-#[derive(Debug, FromSql, ToSql)]
+#[derive(Debug, FromSql, ToSql, Serialize, Deserialize)]
 #[postgres(name = "classification_t")]
 pub enum Classification {
     #[postgres(name = "confidential")]
+    #[serde(rename = "confidential")]
     Confidential,
     #[postgres(name = "sensitive")]
+    #[serde(rename = "sensitive")]
     Sensitive,
     #[postgres(name = "private")]
+    #[serde(rename = "private")]
     Private,
     #[postgres(name = "public")]
+    #[serde(rename = "public")]
     Public,
 }
 
@@ -201,22 +216,36 @@ fn test_display_classification() {
     assert_eq!("public", format!("{}", Classification::Public));
 }
 
+/// A DatasetSchema is the "schema" key found in a dd.json config file
+pub type DatasetSchema = std::collections::HashMap<String, Option<String>>;
+
 /// A Dataset is the parent node of partitions, where each dataset is split up into one or many
 /// partitions, typically based on date or size.
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Dataset {
     pub id: i32,
     pub name: String,
     pub manager_id: i32,
-    pub class: Classification,
+    pub classification: Classification,
     pub compression: Compression,
     pub encoding: Encoding,
     pub description: String,
+    pub schema: DatasetSchema,
     pub created_at: DateTime<Utc>,
-    pub updated_at: Option<DateTime<Utc>>,
+    pub updated_at: DateTime<Utc>,
 }
 
-/// The implementation wraps most DataService trait methods, which are meant to be abstracted over a
+// DatasetConfig is the dd.json file
+#[derive(Debug, Serialize, Deserialize)]
+pub struct DatasetConfig {
+    pub name: String,
+    pub classification: Classification,
+    pub compression: Compression,
+    pub encoding: Encoding,
+    pub description: String,
+    pub schema: DatasetSchema,
+}
+
 /// concrete data source. For local development and testing, a local, mocked, or in-memory database
 /// may be used, compared with a remote database server when deployed.
 impl Dataset {
@@ -289,14 +318,17 @@ impl Dataset {
 
 /// A Partition is a partial dataset, containing a subset of data. Each partition within a Dataset
 /// must follow the same schema, compression, and encoding.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Serialize)]
 pub struct Partition {
+    #[serde(rename(serialize = "partition_id"))]
     pub id: i32,
+    #[serde(rename(serialize = "partition_name"))]
     pub name: String,
+    #[serde(rename(serialize = "partition_url"))]
     pub url: String,
     pub dataset_id: i32,
     pub created_at: DateTime<Utc>,
-    pub updated_at: Option<DateTime<Utc>>,
+    pub updated_at: DateTime<Utc>,
 }
 
 /// Params specify how a Dataset's Partition results should be returned.

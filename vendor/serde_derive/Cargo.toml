@@ -12,9 +12,9 @@
 
 [package]
 name = "serde_derive"
-version = "1.0.111"
+version = "1.0.112"
 authors = ["Erick Tryzelaar <erick.tryzelaar@gmail.com>", "David Tolnay <dtolnay@gmail.com>"]
-include = ["Cargo.toml", "src/**/*.rs", "crates-io.md", "README.md", "LICENSE-APACHE", "LICENSE-MIT"]
+include = ["src/**/*.rs", "crates-io.md", "README.md", "LICENSE-APACHE", "LICENSE-MIT"]
 description = "Macros 1.1 implementation of #[derive(Serialize, Deserialize)]"
 homepage = "https://serde.rs"
 documentation = "https://serde.rs/derive.html"

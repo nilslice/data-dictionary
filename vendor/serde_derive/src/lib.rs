@@ -13,7 +13,7 @@
 //!
 //! [https://serde.rs/derive.html]: https://serde.rs/derive.html
 
-#![doc(html_root_url = "https://docs.rs/serde_derive/1.0.111")]
+#![doc(html_root_url = "https://docs.rs/serde_derive/1.0.112")]
 #![allow(unknown_lints, bare_trait_objects)]
 #![deny(clippy::all, clippy::pedantic)]
 // Ignored clippy lints
@@ -24,7 +24,9 @@
     clippy::too_many_arguments,
     clippy::trivially_copy_pass_by_ref,
     clippy::used_underscore_binding,
-    clippy::wildcard_in_or_patterns
+    clippy::wildcard_in_or_patterns,
+    // clippy bug: https://github.com/rust-lang/rust-clippy/issues/5704
+    clippy::unnested_or_patterns,
 )]
 // Ignored clippy_pedantic lints
 #![allow(

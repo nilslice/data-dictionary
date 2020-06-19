@@ -1,5 +1,5 @@
 use crate::dict::{
-    Classification, Compression, Dataset, Encoding, Manager, Partition, RangeParams,
+    Classification, Compression, Dataset, DatasetSchema, Encoding, Manager, Partition, RangeParams,
 };
 use crate::error::Error;
 
@@ -13,6 +13,7 @@ pub trait DataService {
         compression: Compression,
         encoding: Encoding,
         classification: Classification,
+        schema: DatasetSchema,
         description: impl AsRef<str>,
     ) -> Result<Dataset, Error>;
 

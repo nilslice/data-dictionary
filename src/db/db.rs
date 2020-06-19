@@ -3,7 +3,7 @@ use std::env;
 use crate::db::range_query;
 use crate::db::sql;
 use crate::dict::{
-    Classification, Compression, Dataset, Encoding, Manager, Partition, RangeParams,
+    Classification, Compression, Dataset, DatasetSchema, Encoding, Manager, Partition, RangeParams,
     PARTITION_LATEST,
 };
 use crate::error::Error;
@@ -75,10 +75,11 @@ impl From<&Row> for Dataset {
             id: row.get("dataset_id"),
             name: row.get("dataset_name"),
             manager_id: row.get("manager_id"),
-            class: row.get("dataset_classification"),
+            classification: row.get("dataset_classification"),
             compression: row.get("dataset_compression"),
             encoding: row.get("dataset_encoding"),
             description: row.get("dataset_desc"),
+            schema: row.get("dataset_schema"),
             created_at: row.get("created_at"),
             updated_at: row.get("updated_at"),
         }
@@ -91,10 +92,11 @@ impl From<Row> for Dataset {
             id: row.get("dataset_id"),
             name: row.get("dataset_name"),
             manager_id: row.get("manager_id"),
-            class: row.get("dataset_classification"),
+            classification: row.get("dataset_classification"),
             compression: row.get("dataset_compression"),
             encoding: row.get("dataset_encoding"),
             description: row.get("dataset_desc"),
+            schema: row.get("dataset_schema"),
             created_at: row.get("created_at"),
             updated_at: row.get("updated_at"),
         }
@@ -170,6 +172,7 @@ impl DataService for Db {
         compression: Compression,
         encoding: Encoding,
         classification: Classification,
+        schema: DatasetSchema,
         description: impl AsRef<str>,
     ) -> Result<Dataset, Error> {
         let stmt = self.client.prepare(sql::REGISTER_DATASET)?;
@@ -183,6 +186,7 @@ impl DataService for Db {
                     &compression,
                     &encoding,
                     &classification,
+                    &schema,
                     &description.as_ref(),
                 ],
             )?
@@ -249,13 +253,13 @@ impl DataService for Db {
         }
 
         let stmt = self.client.prepare(sql_querytype.0)?;
-        return match sql_querytype.1 {
+        match sql_querytype.1 {
             PartitionQuery::Named => Ok(self
                 .client
                 .query_one(&stmt, &[&partition_name.as_ref(), &dataset.id])?
                 .into()),
             PartitionQuery::Latest => Ok(self.client.query_one(&stmt, &[&dataset.id])?.into()),
-        };
+        }
     }
 
     fn range_partitions(
@@ -335,13 +339,12 @@ impl DataService for Db {
 
         // validate that the password provided is the same as our stored value
         let hash = argon2rs::argon2d_simple(password.as_ref(), &manager.salt);
-        if hash != manager.hash.as_ref() {
-            return Err(Error::Auth(format!(
+        match hash != manager.hash.as_ref() {
+            true => Err(Error::Auth(format!(
                 "invalid credentials for '{}'",
                 email.as_ref()
-            )));
-        } else {
-            return Ok(manager);
+            ))),
+            false => Ok(manager),
         }
     }
 

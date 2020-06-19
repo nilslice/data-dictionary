@@ -1,8 +1,9 @@
-DROP TABLE IF EXISTS refinery_schema_history;
-DROP TABLE IF EXISTS partitions;
-DROP TABLE IF EXISTS datasets;
-DROP TABLE IF EXISTS managers;
-DROP TYPE IF EXISTS compression_t;
-DROP TYPE IF EXISTS encoding_t;
-DROP TYPE IF EXISTS classification_t;
-DROP FUNCTION IF EXISTS on_update_set_timestamp;
+DROP TABLE IF EXISTS refinery_schema_history CASCADE;
+DROP TABLE IF EXISTS partitions CASCADE;
+DROP TABLE IF EXISTS datasets CASCADE;
+DROP TABLE IF EXISTS managers CASCADE;
+DROP TYPE IF EXISTS compression_t CASCADE;
+DROP TYPE IF EXISTS encoding_t CASCADE;
+DROP TYPE IF EXISTS classification_t CASCADE;
+DROP FUNCTION IF EXISTS on_update_set_timestamp CASCADE;
+DROP EXTENSION IF EXISTS hstore CASCADE;

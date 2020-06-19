@@ -1,5 +1,7 @@
 use data_dictionary::db::{rand, Db, CHARACTER_SET};
-use data_dictionary::dict::{Classification, Compression, Encoding, FileExt};
+use data_dictionary::dict::{
+    Classification, Compression, DatasetSchema, Encoding, FileExt, Manager,
+};
 use data_dictionary::error::Error;
 
 pub struct TestDb {
@@ -44,6 +46,13 @@ pub fn new_test_db() -> Result<TestDb, Error> {
     reset_db(&mut test_db)?;
 
     Ok(test_db)
+}
+
+pub fn create_manager(conn: &mut TestDb) -> Result<Manager, Error> {
+    // create a manager
+    let email: &str = &get_rand(Rand::Email);
+    let password: &str = &get_rand(Rand::Password);
+    Manager::register(&mut conn.db, email, password)
 }
 
 fn rand_valid_email() -> String {
@@ -97,8 +106,19 @@ pub enum Rand {
     Password,
     String(usize),
     PartitionName(Encoding, Compression),
-    SchemaName,
     PartitionUrl(Encoding, Compression, Classification),
+    SchemaName,
+}
+
+pub fn rand_schema() -> DatasetSchema {
+    let mut schema = std::collections::HashMap::new();
+    schema.insert("merchant_id".into(), Some("integer".into()));
+    schema.insert("merchant_name".into(), Some("string".into()));
+    schema.insert("mrr_cents".into(), Some("integer".into()));
+    schema.insert("churn_rate".into(), Some("float".into()));
+    schema.insert("last_billed".into(), Some("date".into()));
+
+    schema
 }
 
 pub fn get_rand(of: Rand) -> String {
@@ -107,7 +127,7 @@ pub fn get_rand(of: Rand) -> String {
         Rand::Password => rand_password(),
         Rand::String(s) => rand(s, CHARACTER_SET.into()),
         Rand::PartitionName(enc, comp) => rand_partition_name(enc, comp),
-        Rand::SchemaName => rand_schema_name(),
         Rand::PartitionUrl(enc, comp, class) => rand_partition_url(enc, comp, class),
+        Rand::SchemaName => rand_schema_name(),
     }
 }

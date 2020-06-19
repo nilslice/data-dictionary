@@ -8,6 +8,7 @@ pub enum Error {
     Generic(Box<dyn StdErr>),
     Sql(PgError),
     InputValidation(String),
+    DBConversion(String),
     Utf8(std::string::FromUtf8Error),
     Auth(String),
 }

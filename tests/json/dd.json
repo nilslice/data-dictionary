@@ -1,0 +1,15 @@
+{
+    "name": "example_dataset",
+    "classification": "private",
+    "compression": "zip",
+    "encoding": "protobuf",
+    "description": "The example_dataset is used to test datadictionary features.",
+    "schema": {
+        "id": "integer",
+        "merchant_name": "string",
+        "mrr_cents": "integer",
+        "churn_rate": "float",
+        "subs_gained": "integer",
+        "subs_lost": "integer"
+    }
+}

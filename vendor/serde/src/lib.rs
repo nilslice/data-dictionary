@@ -80,7 +80,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 // Serde types in rustdoc of other crates get linked to here.
-#![doc(html_root_url = "https://docs.rs/serde/1.0.111")]
+#![doc(html_root_url = "https://docs.rs/serde/1.0.112")]
 // Support using Serde without the standard library!
 #![cfg_attr(not(feature = "std"), no_std)]
 // Unstable functionality only if the user asks for it. For tracking and
@@ -95,6 +95,8 @@
 #![cfg_attr(
     feature = "cargo-clippy",
     allow(
+        // clippy bug: https://github.com/rust-lang/rust-clippy/issues/5704
+        unnested_or_patterns,
         // not available in our oldest supported compiler
         checked_conversions,
         empty_enum,
