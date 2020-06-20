@@ -11,6 +11,7 @@ pub enum Error {
     DBConversion(String),
     Utf8(std::string::FromUtf8Error),
     Auth(String),
+    Http(String),
 }
 
 impl fmt::Display for Error {
