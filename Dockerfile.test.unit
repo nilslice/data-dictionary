@@ -1,0 +1,7 @@
+FROM rust:1.44.0-slim-buster AS test-build
+WORKDIR /test-build
+RUN apt-get update && apt-get install pkg-config libssl-dev openssl -y
+COPY . .
+
+# run the unit tests in the lib (not the integration tests in the "tests" directory)
+RUN cargo test --lib

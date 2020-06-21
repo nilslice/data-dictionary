@@ -1,7 +1,12 @@
 FROM rust:1.44.0-slim-buster AS test-build
 WORKDIR /test-build
-RUN apt-get update && apt-get install -y jq
+RUN apt-get update && apt-get install jq pkg-config libssl-dev openssl -y
 COPY . .
 ENV BUILD_ARTIFACTS=test_artifacts.json
+
+# run the unit tests in the lib (not the integration tests in the "tests" directory)
+RUN cargo test --lib
+
+# run the integration tests, parsing out the executable paths to be used in docker-compose environment
 RUN cargo build --tests --message-format=json > ${BUILD_ARTIFACTS}
 RUN mv $(jq 'select(.target.name=="db_test") | select(.filenames[0] != null) | .executable' ${BUILD_ARTIFACTS} | xargs) db_test.cargo.bin
