@@ -4,9 +4,9 @@ use data_dictionary::pubsub::{subscribe, Subscription};
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {
-    // println!("running: src/bin/data-dictionary");
-    // let mut db = Db::connect(None)?;
-    // db.migrate()?;
+    println!("running: src/bin/data-dictionary");
+    let mut db = Db::connect(None).await?;
+    db.migrate().await?;
 
     subscribe(&Subscription::from_env()).await?;
     Ok(())

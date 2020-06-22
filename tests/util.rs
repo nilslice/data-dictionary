@@ -9,57 +9,63 @@ pub struct TestDb {
     schema: String,
 }
 
-impl Drop for TestDb {
-    fn drop(&mut self) {
-        self.db
-            .client
-            .simple_query(&format!("DROP SCHEMA IF EXISTS {} CASCADE;", self.schema))
-            .expect("failed to drop test db and schema");
-    }
-}
-
-pub fn reset_db(conn: &mut TestDb) -> Result<(), Error> {
-    clear_db(conn)?;
-    conn.db.migrate()?;
+pub async fn reset_db(conn: &mut TestDb) -> Result<(), Error> {
+    clear_db(conn).await?;
+    conn.db.migrate().await?;
     Ok(())
 }
 
-pub fn clear_db(conn: &mut TestDb) -> Result<(), Error> {
+pub async fn clear_db(conn: &mut TestDb) -> Result<(), Error> {
     conn.db
         .client
         .batch_execute(include_str!("sql/drop_all.sql"))
+        .await
         .map_err(|e| Error::Generic(Box::new(e)))
 }
 
-pub fn new_test_db() -> Result<TestDb, Error> {
-    let db = Db::connect(None)?;
+pub async fn new_test_db() -> Result<TestDb, Error> {
+    let db = Db::connect(None).await?;
     // create random schema name and use it for the current connection (used by single test)
     let mut test_db = TestDb {
         db,
         schema: get_rand(Rand::SchemaName),
     };
-    test_db.db.client.batch_execute(&format!(
-        "CREATE SCHEMA IF NOT EXISTS {}; SET search_path TO {};",
-        test_db.schema, test_db.schema
-    ))?;
+    test_db
+        .db
+        .client
+        .batch_execute(&format!(
+            "CREATE SCHEMA IF NOT EXISTS {}; SET search_path TO {};",
+            test_db.schema, test_db.schema
+        ))
+        .await?;
 
-    reset_db(&mut test_db)?;
+    reset_db(&mut test_db).await?;
 
     Ok(test_db)
 }
 
-pub fn create_manager(conn: &mut TestDb) -> Result<Manager, Error> {
+pub async fn drop_test_db(conn: &mut TestDb) -> Result<(), Error> {
+    let _ = conn
+        .db
+        .client
+        .simple_query(&format!("DROP SCHEMA IF EXISTS {} CASCADE;", conn.schema))
+        .await?;
+
+    Ok(())
+}
+
+pub async fn create_manager(conn: &mut TestDb) -> Result<Manager, Error> {
     // create a manager
-    let email: &str = &get_rand(Rand::Email);
-    let password: &str = &get_rand(Rand::Password);
-    Manager::register(&mut conn.db, email, password)
+    let email = get_rand(Rand::Email);
+    let password = get_rand(Rand::Password);
+    Manager::register(&mut conn.db, email, password).await
 }
 
 fn rand_valid_email() -> String {
     format!(
         "{}@{}",
         rand(6, CHARACTER_SET.into()),
-        std::env::var("DD_MANAGER_EMAIL_DOMAIN").unwrap_or("valid.email.com".into())
+        std::env::var("DD_MANAGER_EMAIL_DOMAIN").unwrap_or_else(|_| "valid.email.com".to_string())
     )
 }
 
@@ -68,9 +74,9 @@ fn rand_password() -> String {
 }
 
 fn rand_partition_name(enc: Encoding, comp: Compression) -> String {
-    let ts = chrono::Utc::now().to_string();
+    let ts = chrono::Utc::now().to_string().replace(" ", "-");
     format!("partition-{}.{}.{}", ts, enc.to_ext(), comp.to_ext())
-        .trim_end_matches(".")
+        .trim_end_matches('.')
         .into()
 }
 

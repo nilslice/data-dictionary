@@ -17,6 +17,7 @@ pub struct Subscription {
     pub project_id: String,
     pub topic: String,
     pub callback_url: String,
+    pub service_endpoint: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -54,18 +55,17 @@ impl Subscription {
             topic: env::var("DD_TOPIC_NAME").expect("DD_TOPIC_NAME environment variable not set"),
             callback_url: env::var("DD_CALLBACK_HOST")
                 .expect("DD_CALLBACK_HOST environment variable not set"),
+            service_endpoint: env::var("PUBSUB_SERVICE")
+                .expect("PUBSUB_SERVICE environment variable not set"),
         }
     }
 }
 
-const DEFAULT_PUBSUB_SERVICE: &str = "https://pubsub.googleapis.com/v1";
-
 /// Creates a subscription using the "push config" method.
 pub async fn subscribe(sub: &Subscription) -> Result<(), Error> {
-    let service = env::var("PUBSUB_SERVICE_OVERRIDE").unwrap_or(DEFAULT_PUBSUB_SERVICE.into());
     let url = format!(
-        "{}/projects/{}/subscriptions/{}",
-        service, sub.project_id, sub.name
+        "{}/v1/projects/{}/subscriptions/{}",
+        sub.service_endpoint, sub.project_id, sub.name
     );
     let client = reqwest::Client::new();
     let mut attrs = HashMap::new();
@@ -74,11 +74,11 @@ pub async fn subscribe(sub: &Subscription) -> Result<(), Error> {
     let sub_payload = SubscriptionCreatePayload {
         topic: format!("projects/{}/topics/{}", sub.project_id, sub.topic.clone()),
         push_config,
-    }; 
+    };
     let mut headers = HeaderMap::new();
     headers.insert(
         AUTHORIZATION,
-        format!("{}", get_gcp_auth_token()?)
+        get_gcp_auth_token()?
             .parse()
             .expect("failed to parse header value for auth token"),
     );
@@ -109,7 +109,7 @@ fn get_gcp_auth_token() -> Result<String, Error> {
     let token = Token::new().map_err(|e| Error::Generic(Box::new(e)))?;
     match token.header_value() {
         Ok(arc) => Ok(arc.as_ref().into()),
-        Err(e) => Err(Error::Generic(Box::new(e)))
+        Err(e) => Err(Error::Generic(Box::new(e))),
     }
 }
 

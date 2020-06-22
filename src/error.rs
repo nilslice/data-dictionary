@@ -1,7 +1,7 @@
 use std::error::Error as StdErr;
 use std::fmt;
 
-type PgError = postgres::error::Error;
+type PgError = tokio_postgres::error::Error;
 
 #[derive(Debug)]
 pub enum Error {

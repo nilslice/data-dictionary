@@ -3,58 +3,53 @@ use crate::dict::{
 };
 use crate::error::Error;
 
+use async_trait::async_trait;
 use uuid::Uuid;
 
+#[async_trait]
 pub trait DataService {
-    fn register_dataset(
+    async fn register_dataset(
         &mut self,
         manager: &Manager,
-        name: impl AsRef<str>,
+        name: &str,
         compression: Compression,
         encoding: Encoding,
         classification: Classification,
         schema: DatasetSchema,
-        description: impl AsRef<str>,
+        description: &str,
     ) -> Result<Dataset, Error>;
 
-    fn find_dataset(&mut self, name: impl AsRef<str>) -> Result<Dataset, Error>;
+    async fn find_dataset(&mut self, name: &str) -> Result<Dataset, Error>;
 
-    fn list_datasets(&mut self) -> Result<Vec<Dataset>, Error>;
+    async fn list_datasets(&mut self) -> Result<Vec<Dataset>, Error>;
 
-    fn register_partition(
+    async fn register_partition(
         &mut self,
         dataset: &Dataset,
-        partition_name: impl AsRef<str>,
-        partition_url: impl AsRef<str>,
+        partition_name: &str,
+        partition_url: &str,
     ) -> Result<Partition, Error>;
 
-    fn find_partition(
+    async fn find_partition(
         &mut self,
         dataset: &Dataset,
-        partition_name: impl AsRef<str>,
+        partition_name: &str,
     ) -> Result<Partition, Error>;
 
-    fn range_partitions(
+    async fn range_partitions(
         &mut self,
         dataset: &Dataset,
         params: &RangeParams,
     ) -> Result<Vec<Partition>, Error>;
 
-    fn list_partitions(&mut self, dataset: &Dataset) -> Result<Vec<Partition>, Error>;
+    async fn list_partitions(&mut self, dataset: &Dataset) -> Result<Vec<Partition>, Error>;
 
-    fn register_manager(
-        &mut self,
-        email: impl AsRef<str>,
-        password: impl AsRef<str>,
-    ) -> Result<Manager, Error>;
+    async fn register_manager(&mut self, email: &str, password: &str)
+        -> Result<Manager, Error>;
 
-    fn find_manager(&mut self, api_key: &Uuid) -> Result<Manager, Error>;
+    async fn find_manager(&mut self, api_key: &Uuid) -> Result<Manager, Error>;
 
-    fn auth_manager(
-        &mut self,
-        email: impl AsRef<str>,
-        password: impl AsRef<str>,
-    ) -> Result<Manager, Error>;
+    async fn auth_manager(&mut self, email: &str, password: &str) -> Result<Manager, Error>;
 
-    fn manager_datasets(&mut self, api_key: &Uuid) -> Result<Vec<Dataset>, Error>;
+    async fn manager_datasets(&mut self, api_key: &Uuid) -> Result<Vec<Dataset>, Error>;
 }

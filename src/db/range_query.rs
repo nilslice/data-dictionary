@@ -1,5 +1,5 @@
 use crate::dict::RangeParams;
-use postgres::types::ToSql;
+use postgres_types::ToSql;
 
 const SQL_ALL_PARTITIONS: &str = r#"
     SELECT partition_id, partition_name, partition_url, dataset_id, created_at, updated_at
@@ -11,7 +11,7 @@ fn query_append(append: &str) -> String {
     format!("{} {};", SQL_ALL_PARTITIONS, append)
 }
 
-pub fn partitions(params: &RangeParams) -> (String, Vec<Box<(dyn ToSql + Sync)>>) {
+pub fn partitions(params: &RangeParams) -> (String, Vec<Box<(dyn ToSql + Sync + Send)>>) {
     match (params.start, params.end, params.count, params.offset) {
         (None, None, None, None) => (query_append("ORDER BY created_at ASC"), vec![]),
         (Some(start), None, None, None) => (
