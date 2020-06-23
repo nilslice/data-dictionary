@@ -13,67 +13,57 @@ use std::collections::HashMap;
 use std::env;
 
 pub struct Subscription {
-    pub name: String,
-    pub project_id: String,
-    pub topic: String,
-    pub callback_url: String,
-    pub service_endpoint: String,
+    name: String,
+    project_id: String,
+    topic: String,
+    service_endpoint: String,
 }
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct SubscriptionCreatePayload {
     topic: String,
-    push_config: PushConfig,
-}
-
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-struct PushConfig {
-    push_endpoint: String,
-    attributes: HashMap<String, String>,
-}
-
-impl PushConfig {
-    fn new(push_endpoint: impl AsRef<str>, attributes: HashMap<String, String>) -> Self {
-        Self {
-            push_endpoint: push_endpoint.as_ref().into(),
-            attributes,
-        }
-    }
+    // TODO: include more fields where applicable:
+    // https://cloud.google.com/pubsub/docs/reference/rest/v1/projects.subscriptions/create#request-body
 }
 
 impl Subscription {
-    /// Creates a Subscription struct from the available environment variables. Requires each of
-    /// DD_GCP_PROJECT_ID, DD_TOPIC_NAME, DD_SUBSCRIPTION_NAME, DD_CALLBACK_URL to be set.
-    pub fn from_env() -> Subscription {
-        Subscription {
+    /// Creates a pub/sub subscription from the available environment variables. Requires each of
+    /// DD_GCP_PROJECT_ID, DD_TOPIC_NAME, DD_SUBSCRIPTION_NAME, PUBSUB_SERVICE to be set.
+    pub async fn from_env() -> Result<Subscription, Error> {
+        let sub = Subscription {
             name: env::var("DD_SUBSCRIPTION_NAME")
                 .expect("DD_SUBSCRIPTION_NAME environment variable not set"),
             project_id: env::var("DD_GCP_PROJECT_ID")
                 .expect("DD_GCP_PROJECT_ID environment variable not set"),
             topic: env::var("DD_TOPIC_NAME").expect("DD_TOPIC_NAME environment variable not set"),
-            callback_url: env::var("DD_CALLBACK_HOST")
-                .expect("DD_CALLBACK_HOST environment variable not set"),
             service_endpoint: env::var("PUBSUB_SERVICE")
                 .expect("PUBSUB_SERVICE environment variable not set"),
-        }
+        };
+
+        subscribe(&sub).await?;
+
+        Ok(sub)
+    }
+
+    pub fn topic(&self) -> &str {
+        &self.topic
+    }
+
+    pub fn name(&self) -> &str {
+        &self.name
     }
 }
 
-/// Creates a subscription using the "push config" method.
-pub async fn subscribe(sub: &Subscription) -> Result<(), Error> {
+/// Creates a subscription using the "pull" method.
+async fn subscribe(sub: &Subscription) -> Result<(), Error> {
     let url = format!(
         "{}/v1/projects/{}/subscriptions/{}",
         sub.service_endpoint, sub.project_id, sub.name
     );
     let client = reqwest::Client::new();
-    let mut attrs = HashMap::new();
-    attrs.insert("x-goog-version".into(), "v1".into());
-    let push_config = PushConfig::new(sub.callback_url.clone(), attrs);
     let sub_payload = SubscriptionCreatePayload {
         topic: format!("projects/{}/topics/{}", sub.project_id, sub.topic.clone()),
-        push_config,
     };
     let mut headers = HeaderMap::new();
     headers.insert(
@@ -116,27 +106,11 @@ fn get_gcp_auth_token() -> Result<String, Error> {
 #[test]
 fn test_subscription_create_payload() {
     let expected = r#"{
-  "topic": "{topic}",
-  "pushConfig": {
-    "pushEndpoint": "{endpoint}",
-    "attributes": {
-      "{attr_key}": "{attr_value}"
-    }
-  }
+  "topic": "{topic}"
 }"#;
     let topic = String::from("datadict-test");
-    let endpoint = "https://push-config-url/endpoint";
-    let attr_key = "x-goog-version";
-    let attr_value = "v1";
     let expected = expected.replace("{topic}", &topic);
-    let expected = expected.replace("{endpoint}", endpoint);
-    let expected = expected.replace("{attr_key}", attr_key);
-    let expected: &str = &expected.replace("{attr_value}", attr_value);
-
-    let mut attrs = HashMap::new();
-    attrs.insert(attr_key.into(), attr_value.into());
-    let push_config = PushConfig::new(endpoint, attrs);
-    let sub_payload = SubscriptionCreatePayload { topic, push_config };
+    let sub_payload = SubscriptionCreatePayload { topic };
     let payload = serde_json::to_string_pretty(&sub_payload).unwrap();
     assert_eq!(payload.replace("\n", ""), expected.replace("\n", ""));
 }

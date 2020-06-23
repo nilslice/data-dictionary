@@ -13,4 +13,5 @@
 - `DD_SUBSCRIPTION_NAME`: Pubsub subscription name created for notifying Data Dictionary of bucket events
 - `DD_GCP_PROJECT_ID`: Google Cloud Project ID associated with the environment 
 - `DD_TOPIC_NAME`: Pubsub topic name created for bucket event message transfer
-- `DD_CALLBACK_HOST`: HTTP host of the Data Dictionary service in your environment (e.g. `"https://datadict.svc.local"`)
+- `PUBSUB_SERVICE`: URL of the global or region-specific Pub/Sub service (e.g. `"https://pubsub.googleapis.com"`)
+- `GOOGLE_APPLICATION_CREDENTIALS`: optional, path to the service account key on disk (e.g. `"path/to/key.json"`)

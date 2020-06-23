@@ -1,6 +1,6 @@
 use data_dictionary::db::Db;
 use data_dictionary::error::Error;
-use data_dictionary::pubsub::{subscribe, Subscription};
+use data_dictionary::pubsub::Subscription;
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {
@@ -8,6 +8,6 @@ async fn main() -> Result<(), Error> {
     let mut db = Db::connect(None).await?;
     db.migrate().await?;
 
-    subscribe(&Subscription::from_env()).await?;
+    Subscription::from_env().await?;
     Ok(())
 }
