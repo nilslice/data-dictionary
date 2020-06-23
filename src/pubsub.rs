@@ -17,6 +17,8 @@ pub struct Subscription {
     project_id: String,
     topic: String,
     service_endpoint: String,
+    max_messages: usize,
+    client: reqwest::Client,
 }
 
 #[derive(Debug, Serialize)]
@@ -27,11 +29,65 @@ struct SubscriptionCreatePayload {
     // https://cloud.google.com/pubsub/docs/reference/rest/v1/projects.subscriptions/create#request-body
 }
 
+fn max_messages_from_env() -> Result<usize, Error> {
+    match env::var("DD_TOPIC_MAX_MESSAGES") {
+        Ok(v) => v.parse().map_err(|e| Error::Generic(Box::new(e))),
+        Err(e) => Err(Error::Generic(Box::new(e))),
+    }
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Attributes {
+    pub notification_config: String,
+    pub event_type: Event,
+    pub event_time: DateTime<Utc>,
+    pub payload_format: PayloadFormat,
+    pub bucket_id: String,
+    pub object_id: String,
+    pub object_generation: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PullResponse {
+    pub received_messages: Vec<Message>,
+}
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Message {
+    pub ack_id: String,
+    pub message: PubsubMessage,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PubsubMessage {
+    pub data: String,
+    pub attributes: Attributes,
+    pub message_id: String,
+    pub publish_time: DateTime<Utc>,
+}
+
 impl Subscription {
     /// Creates a pub/sub subscription from the available environment variables. Requires each of
     /// DD_GCP_PROJECT_ID, DD_TOPIC_NAME, DD_SUBSCRIPTION_NAME, PUBSUB_SERVICE to be set.
     pub async fn from_env() -> Result<Subscription, Error> {
-        let sub = Subscription {
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            AUTHORIZATION,
+            get_gcp_auth_token()?
+                .parse()
+                .expect("failed to parse header value for auth token"),
+        );
+
+        let client = reqwest::ClientBuilder::new()
+            .default_headers(headers)
+            .build()
+            .map_err(|e| Error::Generic(Box::new(e)))?;
+
+        // TODO: clean this up, it has become disgusting...
+        let mut sub = Subscription {
             name: env::var("DD_SUBSCRIPTION_NAME")
                 .expect("DD_SUBSCRIPTION_NAME environment variable not set"),
             project_id: env::var("DD_GCP_PROJECT_ID")
@@ -39,46 +95,56 @@ impl Subscription {
             topic: env::var("DD_TOPIC_NAME").expect("DD_TOPIC_NAME environment variable not set"),
             service_endpoint: env::var("PUBSUB_SERVICE")
                 .expect("PUBSUB_SERVICE environment variable not set"),
+
+            max_messages: max_messages_from_env()?,
+            client,
         };
 
-        subscribe(&sub).await?;
+        subscribe(&mut sub).await?;
 
         Ok(sub)
     }
 
-    pub fn topic(&self) -> &str {
-        &self.topic
+    pub async fn pull(&self) -> Result<Option<PullResponse>, Error> {
+        // POST https://pubsub.googleapis.com/v1/{subscription}:pull
+        let url = format!("{}/v1/{}:pull", self.service_endpoint, self.name());
+        let resp = self
+            .client
+            .post(&url)
+            .json(&serde_json::json!({ "maxMessages": self.max_messages }))
+            .send()
+            .await
+            .map_err(|e| Error::Http(format!("failed to make subscription pull request: {}", e)))?;
+
+        match resp.status() {
+            StatusCode::OK => resp.json().await.map_err(|e| Error::Generic(Box::new(e))),
+            _ => Err(Error::Http(format!(
+                "subscription pull response error code: {}",
+                resp.status()
+            ))),
+        }
     }
 
-    pub fn name(&self) -> &str {
-        &self.name
+    pub fn topic(&self) -> String {
+        format!("projects/{}/topics/{}", self.project_id, self.topic)
+    }
+
+    pub fn name(&self) -> String {
+        format!("projects/{}/subscriptions/{}", self.project_id, self.name)
     }
 }
 
 /// Creates a subscription using the "pull" method.
-async fn subscribe(sub: &Subscription) -> Result<(), Error> {
-    let url = format!(
-        "{}/v1/projects/{}/subscriptions/{}",
-        sub.service_endpoint, sub.project_id, sub.name
-    );
-    let client = reqwest::Client::new();
-    let sub_payload = SubscriptionCreatePayload {
-        topic: format!("projects/{}/topics/{}", sub.project_id, sub.topic.clone()),
-    };
-    let mut headers = HeaderMap::new();
-    headers.insert(
-        AUTHORIZATION,
-        get_gcp_auth_token()?
-            .parse()
-            .expect("failed to parse header value for auth token"),
-    );
-    let resp = client
+async fn subscribe(sub: &mut Subscription) -> Result<(), Error> {
+    let url = format!("{}/v1/{}", sub.service_endpoint, sub.name());
+    let sub_payload = SubscriptionCreatePayload { topic: sub.topic() };
+    let resp = sub
+        .client
         .put(&url)
-        .headers(headers)
         .json(&sub_payload)
         .send()
         .await
-        .map_err(|e| Error::Http(format!("failed to make subscription request: {}", e)))?;
+        .map_err(|e| Error::Http(format!("failed to make subscription create request: {}", e)))?;
 
     match resp.status() {
         StatusCode::OK => Ok(()),
@@ -113,17 +179,6 @@ fn test_subscription_create_payload() {
     let sub_payload = SubscriptionCreatePayload { topic };
     let payload = serde_json::to_string_pretty(&sub_payload).unwrap();
     assert_eq!(payload.replace("\n", ""), expected.replace("\n", ""));
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct Attributes {
-    pub notification_config: String,
-    pub event_type: Event,
-    pub payload_format: PayloadFormat,
-    pub bucket_id: String,
-    pub object_id: String,
-    pub object_generation: i32,
 }
 #[derive(Debug, Deserialize)]
 pub struct Notification {

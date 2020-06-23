@@ -8,6 +8,11 @@ async fn main() -> Result<(), Error> {
     let mut db = Db::connect(None).await?;
     db.migrate().await?;
 
-    Subscription::from_env().await?;
+    let sub = Subscription::from_env().await?;
+    println!("{} {}", sub.name(), sub.topic());
+    loop {
+        std::thread::sleep(std::time::Duration::from_millis(1000));
+        println!("{:?}", sub.pull().await);
+    }
     Ok(())
 }
