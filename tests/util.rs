@@ -44,6 +44,7 @@ pub async fn new_test_db() -> Result<TestDb, Error> {
     Ok(test_db)
 }
 
+// TODO: impl Drop for TestDb, if possible, whereby it handles this operation automatically
 pub async fn drop_test_db(conn: &mut TestDb) -> Result<(), Error> {
     let _ = conn
         .db

@@ -227,6 +227,15 @@ impl DataService for Db {
             .collect())
     }
 
+    async fn delete_dataset(&mut self, dataset: &Dataset) -> Result<(), Error> {
+        let stmt = self.client.prepare(sql::DELETE_DATASET).await?;
+        self.client
+            .execute(&stmt, &[&dataset.name])
+            .await
+            .map(|_| ())
+            .map_err(|e| Error::Generic(Box::new(e)))
+    }
+
     async fn register_partition(
         &mut self,
         dataset: &Dataset,

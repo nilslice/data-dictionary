@@ -226,8 +226,8 @@ pub type DatasetSchema = std::collections::HashMap<String, Option<String>>;
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Dataset {
     pub id: i32,
-    pub name: String,
     pub manager_id: i32,
+    pub name: String,
     pub classification: Classification,
     pub compression: Compression,
     pub encoding: Encoding,
@@ -248,6 +248,13 @@ pub struct DatasetConfig {
     pub schema: DatasetSchema,
 }
 
+use crate::pubsub::Message;
+impl From<&Message> for Partition {
+    fn from(m: &Message) -> Self {
+        todo!()
+    }
+}
+
 /// concrete data source. For local development and testing, a local, mocked, or in-memory database
 /// may be used, compared with a remote database server when deployed.
 impl Dataset {
@@ -261,6 +268,11 @@ impl Dataset {
     pub async fn list(svc: &mut impl DataService) -> Result<Vec<Dataset>, Error> {
         info!("listing all datasets");
         svc.list_datasets().await
+    }
+
+    pub async fn delete(svc: &mut impl DataService, dataset: &Dataset) -> Result<(), Error> {
+        info!("deleting dataset '{}' and its partitions", dataset.name);
+        svc.delete_dataset(dataset).await
     }
 
     /// Inserts a partition into the database, using the current dataset as its reference.

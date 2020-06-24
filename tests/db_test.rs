@@ -19,14 +19,7 @@ async fn try_clear_db() {
 async fn test_dataset() {
     let mut test_db = util::new_test_db().await.unwrap();
 
-    // create a manager
-    let email = util::get_rand(Email);
-    let password = util::get_rand(Password);
-    let manager = test_db
-        .db
-        .register_manager(&email, &password)
-        .await
-        .unwrap();
+    let manager = util::create_manager(&mut test_db).await.unwrap();
 
     let dataset_name = util::get_rand(String(18));
     let dataset_desc = util::get_rand(String(42));
@@ -73,26 +66,35 @@ async fn test_dataset() {
             .await
             .unwrap();
 
-        assert!(test_db
+        let partition_result = test_db
             .db
             .register_partition(
                 &dataset,
                 &util::get_rand(PartitionName(
                     Encoding::PlainText,
-                    Compression::Uncompressed
+                    Compression::Uncompressed,
                 )),
                 &util::get_rand(PartitionUrl(
                     Encoding::PlainText,
                     Compression::Uncompressed,
-                    Classification::Sensitive
+                    Classification::Sensitive,
                 )),
             )
-            .await
-            .is_ok());
+            .await;
+        assert!(partition_result.is_ok());
     }
 
     let all_datasets = test_db.db.list_datasets().await.unwrap();
     assert_eq!(all_datasets.len(), 100 as usize);
+
+    // delete the last dataset added and verify that it no longer exists
+    let last_dataset = all_datasets.last().unwrap();
+    let delete_result = test_db.db.delete_dataset(last_dataset).await;
+    println!("{:?}", dataset_result);
+    assert!(delete_result.is_ok());
+    let dataset_result = test_db.db.find_dataset(&last_dataset.name).await;
+    println!("{:?}", dataset_result);
+    assert!(dataset_result.is_err());
 
     // test failure when dataset has no partitions
     let latest_result = dataset.latest_partition(&mut test_db.db).await;

@@ -23,6 +23,8 @@ pub trait DataService {
 
     async fn list_datasets(&mut self) -> Result<Vec<Dataset>, Error>;
 
+    async fn delete_dataset(&mut self, dataset: &Dataset) -> Result<(), Error>;
+
     async fn register_partition(
         &mut self,
         dataset: &Dataset,
@@ -44,8 +46,7 @@ pub trait DataService {
 
     async fn list_partitions(&mut self, dataset: &Dataset) -> Result<Vec<Partition>, Error>;
 
-    async fn register_manager(&mut self, email: &str, password: &str)
-        -> Result<Manager, Error>;
+    async fn register_manager(&mut self, email: &str, password: &str) -> Result<Manager, Error>;
 
     async fn find_manager(&mut self, api_key: &Uuid) -> Result<Manager, Error>;
 

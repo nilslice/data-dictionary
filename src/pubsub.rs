@@ -46,12 +46,14 @@ pub struct Attributes {
     pub bucket_id: String,
     pub object_id: String,
     pub object_generation: String,
+    pub overwritten_by_generation: Option<String>,
+    pub overwrote_generation: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PullResponse {
-    pub received_messages: Vec<Message>,
+    pub received_messages: Option<Vec<Message>>,
 }
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -105,7 +107,7 @@ impl Subscription {
         Ok(sub)
     }
 
-    pub async fn pull(&self) -> Result<Option<PullResponse>, Error> {
+    pub async fn pull(&self) -> Result<PullResponse, Error> {
         // POST https://pubsub.googleapis.com/v1/{subscription}:pull
         let url = format!("{}/v1/{}:pull", self.service_endpoint, self.name());
         let resp = self
@@ -123,6 +125,20 @@ impl Subscription {
                 resp.status()
             ))),
         }
+    }
+
+    pub async fn ack(&self, ack_id: impl AsRef<str>) -> Result<(), Error> {
+        self.client
+            .post(&format!(
+                "{}/v1/{}:acknowledge",
+                self.service_endpoint,
+                self.name()
+            ))
+            .json(&serde_json::json!({ "ackIds": [ack_id.as_ref()] }))
+            .send()
+            .await
+            .map(|_| ())
+            .map_err(|e| Error::Http(format!("failed to make subscription ack request: {}", e)))
     }
 
     pub fn topic(&self) -> String {
@@ -147,12 +163,11 @@ async fn subscribe(sub: &mut Subscription) -> Result<(), Error> {
         .map_err(|e| Error::Http(format!("failed to make subscription create request: {}", e)))?;
 
     match resp.status() {
-        StatusCode::OK => Ok(()),
+        StatusCode::OK | StatusCode::CONFLICT => Ok(()),
         StatusCode::NOT_FOUND => Err(Error::Http(format!(
             "pubsub subscription failed, topic '{}' does not exist",
             sub.topic
         ))),
-        StatusCode::CONFLICT => Ok(()),
         _ => panic!(
             "pubsub subscription failed, unexpected response with status code: {}, and body: {:?}",
             resp.status(),
@@ -167,6 +182,11 @@ fn get_gcp_auth_token() -> Result<String, Error> {
         Ok(arc) => Ok(arc.as_ref().into()),
         Err(e) => Err(Error::Generic(Box::new(e))),
     }
+}
+
+pub fn base64_dec<T: serde::de::DeserializeOwned>(data: &String) -> Result<T, Error> {
+    let data = base64::decode(data).map_err(|e| Error::Generic(Box::new(e)))?;
+    serde_json::from_slice(data.as_slice()).map_err(|e| Error::Generic(Box::new(e)))
 }
 
 #[test]
@@ -213,32 +233,32 @@ pub struct Payload {
     pub self_link: String,
     pub name: String,
     pub bucket: String,
-    pub generation: i32,
-    pub metageneration: i32,
+    pub generation: String,
+    pub metageneration: String,
     pub content_type: String,
     pub time_created: DateTime<Utc>,
     pub updated: DateTime<Utc>,
-    pub time_deleted: DateTime<Utc>,
-    pub temporary_hold: bool,
-    pub event_based_hold: bool,
-    pub retention_expiration_time: DateTime<Utc>,
+    pub time_deleted: Option<DateTime<Utc>>,
+    pub temporary_hold: Option<bool>,
+    pub event_based_hold: Option<bool>,
+    pub retention_expiration_time: Option<DateTime<Utc>>,
     pub storage_class: String,
     pub time_storage_class_updated: DateTime<Utc>,
-    pub size: usize,
+    pub size: String,
     pub md5_hash: String,
     pub media_link: String,
-    pub content_encoding: String,
-    pub content_disposition: String,
-    pub content_language: String,
-    pub cache_control: String,
-    pub metadata: HashMap<String, String>,
-    pub acl: Vec<ObjectAccessControls>,
-    pub owner: ObjectOwner,
-    pub crc32c: String,
-    pub component_count: usize,
-    pub etag: String,
-    pub customer_encryption: CustomerEncryption,
-    pub kms_key_name: String,
+    pub content_encoding: Option<String>,
+    pub content_disposition: Option<String>,
+    pub content_language: Option<String>,
+    pub cache_control: Option<String>,
+    pub metadata: Option<HashMap<String, String>>,
+    pub acl: Option<Vec<ObjectAccessControls>>,
+    pub owner: Option<ObjectOwner>,
+    pub crc32c: Option<String>,
+    pub component_count: Option<usize>,
+    pub etag: Option<String>,
+    pub customer_encryption: Option<CustomerEncryption>,
+    pub kms_key_name: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]

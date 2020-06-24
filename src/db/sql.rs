@@ -16,9 +16,15 @@ pub const LIST_DATASETS: &str = r#"
     ORDER BY created_at ASC
 "#;
 
+pub const DELETE_DATASET: &str = r#"
+    DELETE FROM datasets where dataset_name = $1
+"#;
+
 pub const REGISTER_PARTITION: &str = r#"
     INSERT INTO partitions (partition_name, partition_url, dataset_id)
     VALUES ($1, $2, $3)
+    ON CONFLICT (partition_name, dataset_id) DO UPDATE
+    SET partition_url=excluded.partition_url
     RETURNING partition_id, partition_name, partition_url, dataset_id, created_at, updated_at
 "#;
 
