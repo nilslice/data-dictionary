@@ -2,4 +2,4 @@
 set -o allexport
 source .env
 set +o allexport
-cargo run
+RUST_LOG=info cargo run

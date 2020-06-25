@@ -184,11 +184,6 @@ fn get_gcp_auth_token() -> Result<String, Error> {
     }
 }
 
-pub fn base64_dec<T: serde::de::DeserializeOwned>(data: &String) -> Result<T, Error> {
-    let data = base64::decode(data).map_err(|e| Error::Generic(Box::new(e)))?;
-    serde_json::from_slice(data.as_slice()).map_err(|e| Error::Generic(Box::new(e)))
-}
-
 #[test]
 fn test_subscription_create_payload() {
     let expected = r#"{
