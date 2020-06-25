@@ -11,18 +11,29 @@ pub const FILENAME_DD_JSON: &str = "dd.json";
 /// partition which would have a path root equivalent to an existing dataset name.
 pub async fn handle_payload(db: &mut Db, b64_data: &str, attrs: &Attributes) -> Result<(), Error> {
     let payload = base64_dec::<Payload>(b64_data)?;
+    log::info!(
+        "handling pubsub event: {:?}, object: {}",
+        attrs.event_type,
+        payload.name
+    );
+
     let path = Path::new(&payload.name);
     let dataset = Dataset::find(db, dataset_name(path)?).await?;
-
-    log::info!("event: {:?}, object: {}", attrs.event_type, payload.name);
 
     match attrs.event_type {
         Event::ObjectFinalize | Event::ObjectMetadataUpdate | Event::ObjectArchive => {
             if let Some(name) = partition_name(path)? {
-                return dataset
-                    .register_partition(db, name, payload.self_link)
+                if let Err(e) = dataset
+                    .register_partition(db, &name, payload.self_link)
                     .await
-                    .map(|_| ());
+                {
+                    log::error!(
+                        "failed to register partition '{}' for dataset '{}': {}",
+                        name,
+                        dataset.name,
+                        e
+                    );
+                }
             }
 
             Ok(())

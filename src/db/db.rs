@@ -11,7 +11,7 @@ use crate::service::DataService;
 
 use argon2rs;
 use async_trait::async_trait;
-use log::error;
+use log;
 use postgres_types::ToSql;
 use rand::Rng;
 use tokio;
@@ -63,7 +63,7 @@ impl Db {
         .await?;
         tokio::spawn(async move {
             if let Err(e) = conn.await {
-                eprintln!("connection error: {}", e);
+                log::error!("postgres connection error: {}", e);
             }
         });
 
@@ -243,9 +243,10 @@ impl DataService for Db {
         partition_url: &str,
     ) -> Result<Partition, Error> {
         if partition_name == PARTITION_LATEST {
-            error!(
+            log::error!(
                 "attempt to register partition with name 'latest' for dataset name={} id={}",
-                dataset.name, dataset.id
+                dataset.name,
+                dataset.id
             );
 
             return Err(Error::InputValidation(
@@ -346,7 +347,7 @@ impl DataService for Db {
                     )));
                 }
             }
-            Err(e) => error!(
+            Err(e) => log::error!(
                 "skipping manager email domain validation, 'DD_MANAGER_EMAIL_DOMAIN' {}",
                 e
             ),

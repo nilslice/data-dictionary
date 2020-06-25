@@ -5,21 +5,12 @@ use gouth::Token;
 use reqwest::{
     self,
     header::{HeaderMap, AUTHORIZATION},
-    StatusCode,
+    IntoUrl, Method, RequestBuilder, StatusCode,
 };
 use serde::{Deserialize, Serialize};
 
 use std::collections::HashMap;
 use std::env;
-
-pub struct Subscription {
-    name: String,
-    project_id: String,
-    topic: String,
-    service_endpoint: String,
-    max_messages: usize,
-    client: reqwest::Client,
-}
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -71,25 +62,22 @@ pub struct PubsubMessage {
     pub publish_time: DateTime<Utc>,
 }
 
-impl Subscription {
+pub struct Subscriber {
+    name: String,
+    project_id: String,
+    topic: String,
+    service_endpoint: String,
+    max_messages: usize,
+    client: reqwest::Client,
+    token: Token,
+}
+
+impl Subscriber {
     /// Creates a pub/sub subscription from the available environment variables. Requires each of
     /// DD_GCP_PROJECT_ID, DD_TOPIC_NAME, DD_SUBSCRIPTION_NAME, PUBSUB_SERVICE to be set.
-    pub async fn from_env() -> Result<Subscription, Error> {
-        let mut headers = HeaderMap::new();
-        headers.insert(
-            AUTHORIZATION,
-            get_gcp_auth_token()?
-                .parse()
-                .expect("failed to parse header value for auth token"),
-        );
-
-        let client = reqwest::ClientBuilder::new()
-            .default_headers(headers)
-            .build()
-            .map_err(|e| Error::Generic(Box::new(e)))?;
-
+    pub async fn from_env() -> Result<Subscriber, Error> {
         // TODO: clean this up, it has become disgusting...
-        let mut sub = Subscription {
+        let sub = Subscriber {
             name: env::var("DD_SUBSCRIPTION_NAME")
                 .expect("DD_SUBSCRIPTION_NAME environment variable not set"),
             project_id: env::var("DD_GCP_PROJECT_ID")
@@ -99,20 +87,66 @@ impl Subscription {
                 .expect("PUBSUB_SERVICE environment variable not set"),
 
             max_messages: max_messages_from_env()?,
-            client,
+            client: reqwest::Client::new(),
+            token: Token::new().map_err(|e| Error::Generic(Box::new(e)))?,
         };
 
-        subscribe(&mut sub).await?;
-
         Ok(sub)
+    }
+
+    fn request(&self, method: Method, url: impl IntoUrl) -> Result<RequestBuilder, Error> {
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            AUTHORIZATION,
+            self.get_gcp_auth_token()?
+                .parse()
+                .expect("failed to parse header value for auth token"),
+        );
+
+        Ok(self.client.request(method, url).headers(headers))
+    }
+
+    fn get_gcp_auth_token(&self) -> Result<String, Error> {
+        match self.token.header_value() {
+            Ok(arc) => Ok(arc.as_ref().into()),
+            Err(e) => Err(Error::Generic(Box::new(e))),
+        }
+    }
+
+    /// Creates a subscription using the "pull" method.
+    pub async fn subscribe(&self) -> Result<(), Error> {
+        let url = format!("{}/v1/{}", self.service_endpoint, self.name());
+        let sub_payload = SubscriptionCreatePayload {
+            topic: self.topic(),
+        };
+        let resp = self
+            .request(Method::PUT, &url)?
+            .json(&sub_payload)
+            .send()
+            .await
+            .map_err(|e| {
+                Error::Http(format!("failed to make subscription create request: {}", e))
+            })?;
+
+        match resp.status() {
+            StatusCode::OK | StatusCode::CONFLICT => Ok(()),
+            StatusCode::NOT_FOUND => Err(Error::Http(format!(
+                "pubsub subscription failed, topic '{}' does not exist",
+                self.topic()
+            ))),
+            _ => Err(Error::Http(format!(
+            "pubsub subscription failed, unexpected response with status code: {}, and body: {:?}",
+            resp.status(),
+            resp.text().await
+        ))),
+        }
     }
 
     pub async fn pull(&self) -> Result<PullResponse, Error> {
         // POST https://pubsub.googleapis.com/v1/{subscription}:pull
         let url = format!("{}/v1/{}:pull", self.service_endpoint, self.name());
         let resp = self
-            .client
-            .post(&url)
+            .request(Method::POST, &url)?
             .json(&serde_json::json!({ "maxMessages": self.max_messages }))
             .send()
             .await
@@ -128,12 +162,8 @@ impl Subscription {
     }
 
     pub async fn ack(&self, ack_id: impl AsRef<str>) -> Result<(), Error> {
-        self.client
-            .post(&format!(
-                "{}/v1/{}:acknowledge",
-                self.service_endpoint,
-                self.name()
-            ))
+        let url = format!("{}/v1/{}:acknowledge", self.service_endpoint, self.name());
+        self.request(Method::POST, &url)?
             .json(&serde_json::json!({ "ackIds": [ack_id.as_ref()] }))
             .send()
             .await
@@ -147,40 +177,6 @@ impl Subscription {
 
     pub fn name(&self) -> String {
         format!("projects/{}/subscriptions/{}", self.project_id, self.name)
-    }
-}
-
-/// Creates a subscription using the "pull" method.
-async fn subscribe(sub: &mut Subscription) -> Result<(), Error> {
-    let url = format!("{}/v1/{}", sub.service_endpoint, sub.name());
-    let sub_payload = SubscriptionCreatePayload { topic: sub.topic() };
-    let resp = sub
-        .client
-        .put(&url)
-        .json(&sub_payload)
-        .send()
-        .await
-        .map_err(|e| Error::Http(format!("failed to make subscription create request: {}", e)))?;
-
-    match resp.status() {
-        StatusCode::OK | StatusCode::CONFLICT => Ok(()),
-        StatusCode::NOT_FOUND => Err(Error::Http(format!(
-            "pubsub subscription failed, topic '{}' does not exist",
-            sub.topic
-        ))),
-        _ => panic!(
-            "pubsub subscription failed, unexpected response with status code: {}, and body: {:?}",
-            resp.status(),
-            resp.text().await
-        ),
-    }
-}
-
-fn get_gcp_auth_token() -> Result<String, Error> {
-    let token = Token::new().map_err(|e| Error::Generic(Box::new(e)))?;
-    match token.header_value() {
-        Ok(arc) => Ok(arc.as_ref().into()),
-        Err(e) => Err(Error::Generic(Box::new(e))),
     }
 }
 

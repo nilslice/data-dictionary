@@ -1,3 +1,4 @@
+pub mod api;
 pub mod db;
 pub mod dict;
 pub mod error;
