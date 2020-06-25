@@ -32,6 +32,12 @@ pub trait DataService {
         partition_url: &str,
     ) -> Result<Partition, Error>;
 
+    async fn delete_partition(
+        &mut self,
+        dataset: &Dataset,
+        partition_name: &str,
+    ) -> Result<(), Error>;
+
     async fn find_partition(
         &mut self,
         dataset: &Dataset,

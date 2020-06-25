@@ -261,6 +261,19 @@ impl DataService for Db {
             .into())
     }
 
+    async fn delete_partition(
+        &mut self,
+        dataset: &Dataset,
+        partition_name: &str,
+    ) -> Result<(), Error> {
+        let stmt = self.client.prepare(sql::DELETE_PARTITION).await?;
+        self.client
+            .execute(&stmt, &[&dataset.id, &partition_name])
+            .await
+            .map(|_| ())
+            .map_err(|e| Error::Generic(Box::new(e)))
+    }
+
     async fn find_partition(
         &mut self,
         dataset: &Dataset,

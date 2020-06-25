@@ -1,5 +1,5 @@
-mod util;
-use util::Rand::{Email, PartitionName, PartitionUrl, Password, String};
+mod testutil;
+use testutil::Rand::{Email, PartitionName, PartitionUrl, Password, String};
 
 use data_dictionary::dict::{Classification, Compression, Encoding};
 use data_dictionary::dict::{Dataset, DatasetConfig, Manager, Partition};
@@ -10,19 +10,19 @@ use uuid::Uuid;
 
 #[tokio::test]
 async fn try_clear_db() {
-    let mut test_db = util::new_test_db().await.unwrap();
-    util::clear_db(&mut test_db).await.unwrap();
-    util::drop_test_db(&mut test_db).await.unwrap();
+    let mut test_db = testutil::new_test_db().await.unwrap();
+    testutil::clear_db(&mut test_db).await.unwrap();
+    testutil::drop_test_db(&mut test_db).await.unwrap();
 }
 
 #[tokio::test]
 async fn test_dataset() {
-    let mut test_db = util::new_test_db().await.unwrap();
+    let mut test_db = testutil::new_test_db().await.unwrap();
 
-    let manager = util::create_manager(&mut test_db).await.unwrap();
+    let manager = testutil::create_manager(&mut test_db).await.unwrap();
 
-    let dataset_name = util::get_rand(String(18));
-    let dataset_desc = util::get_rand(String(42));
+    let dataset_name = testutil::get_rand(String(18));
+    let dataset_desc = testutil::get_rand(String(42));
     // create a dataset
     let dataset = test_db
         .db
@@ -32,7 +32,7 @@ async fn test_dataset() {
             Compression::Uncompressed,
             Encoding::Json,
             Classification::Sensitive,
-            util::rand_schema(),
+            testutil::rand_schema(),
             &dataset_desc,
         )
         .await
@@ -56,12 +56,12 @@ async fn test_dataset() {
             .db
             .register_dataset(
                 &manager,
-                &util::get_rand(String(20)),
+                &testutil::get_rand(String(20)),
                 Compression::Zip,
                 Encoding::Csv,
                 Classification::Private,
-                util::rand_schema(),
-                &util::get_rand(String(100)),
+                testutil::rand_schema(),
+                &testutil::get_rand(String(100)),
             )
             .await
             .unwrap();
@@ -70,11 +70,11 @@ async fn test_dataset() {
             .db
             .register_partition(
                 &dataset,
-                &util::get_rand(PartitionName(
+                &testutil::get_rand(PartitionName(
                     Encoding::PlainText,
                     Compression::Uncompressed,
                 )),
-                &util::get_rand(PartitionUrl(
+                &testutil::get_rand(PartitionUrl(
                     Encoding::PlainText,
                     Compression::Uncompressed,
                     Classification::Sensitive,
@@ -90,10 +90,8 @@ async fn test_dataset() {
     // delete the last dataset added and verify that it no longer exists
     let last_dataset = all_datasets.last().unwrap();
     let delete_result = test_db.db.delete_dataset(last_dataset).await;
-    println!("{:?}", dataset_result);
     assert!(delete_result.is_ok());
     let dataset_result = test_db.db.find_dataset(&last_dataset.name).await;
-    println!("{:?}", dataset_result);
     assert!(dataset_result.is_err());
 
     // test failure when dataset has no partitions
@@ -101,8 +99,8 @@ async fn test_dataset() {
     assert!(latest_result.is_err());
 
     // add a partition and validate latest partition exists
-    let partition_name = util::get_rand(PartitionName(Encoding::Protobuf, Compression::Tar));
-    let partition_url = util::get_rand(PartitionUrl(
+    let partition_name = testutil::get_rand(PartitionName(Encoding::Protobuf, Compression::Tar));
+    let partition_url = testutil::get_rand(PartitionUrl(
         Encoding::Protobuf,
         Compression::Tar,
         Classification::Public,
@@ -119,16 +117,49 @@ async fn test_dataset() {
     assert_eq!(latest.id, partition.id);
     assert_eq!(latest.name, partition.name);
 
-    util::drop_test_db(&mut test_db).await.unwrap();
+    // add another partition so next test can delete it and see that latest changes
+    let new_added_partition = dataset
+        .register_partition(
+            &mut test_db.db,
+            testutil::get_rand(PartitionName(Encoding::Csv, Compression::Zip)),
+            testutil::get_rand(PartitionUrl(
+                Encoding::Csv,
+                Compression::Zip,
+                Classification::Private,
+            )),
+        )
+        .await
+        .unwrap();
+
+    // verify the latest partition updated
+    let new_latest_found = dataset.latest_partition(&mut test_db.db).await.unwrap();
+    assert_eq!(new_latest_found.id, new_added_partition.id);
+    assert_eq!(new_latest_found.name, new_added_partition.name);
+
+    // delete the new latest partition and validate that the latest partition changes
+    let prev_before_new_added_latest = latest;
+    dataset
+        .delete_partition(&mut test_db.db, &new_added_partition.name)
+        .await
+        .unwrap();
+    let updated_latest = dataset.latest_partition(&mut test_db.db).await.unwrap();
+    assert_eq!(updated_latest.id, prev_before_new_added_latest.id);
+    assert_eq!(updated_latest.name, prev_before_new_added_latest.name);
+    assert_eq!(
+        updated_latest.created_at,
+        prev_before_new_added_latest.created_at
+    );
+
+    testutil::drop_test_db(&mut test_db).await.unwrap();
 }
 
 #[tokio::test]
 async fn test_module_integration() {
-    let mut test_db = util::new_test_db().await.unwrap();
+    let mut test_db = testutil::new_test_db().await.unwrap();
 
     // create a manager
-    let email: &str = &util::get_rand(Email);
-    let password: &str = &util::get_rand(Password);
+    let email: &str = &testutil::get_rand(Email);
+    let password: &str = &testutil::get_rand(Password);
     let manager = Manager::register(&mut test_db.db, email, password)
         .await
         .unwrap();
@@ -152,8 +183,8 @@ async fn test_module_integration() {
     assert_ne!(manager.id, 0);
     assert_eq!(manager.email, email);
 
-    let dataset_name = &util::get_rand(String(10));
-    let dataset_desc = &util::get_rand(String(40));
+    let dataset_name = &testutil::get_rand(String(10));
+    let dataset_desc = &testutil::get_rand(String(40));
     // create a dataset for a manager
     let dataset = manager
         .register_dataset(
@@ -162,7 +193,7 @@ async fn test_module_integration() {
             Compression::Uncompressed,
             Encoding::Protobuf,
             Classification::Sensitive,
-            util::rand_schema(),
+            testutil::rand_schema(),
             dataset_desc,
         )
         .await
@@ -178,8 +209,8 @@ async fn test_module_integration() {
     assert_eq!(&dataset.description, dataset_desc);
 
     let partition_name =
-        util::get_rand(PartitionName(Encoding::Protobuf, Compression::Uncompressed));
-    let partition_url = util::get_rand(PartitionUrl(
+        testutil::get_rand(PartitionName(Encoding::Protobuf, Compression::Uncompressed));
+    let partition_url = testutil::get_rand(PartitionUrl(
         Encoding::Protobuf,
         Compression::Uncompressed,
         Classification::Private,
@@ -197,7 +228,7 @@ async fn test_module_integration() {
     let partition_result = dataset
         .partition(
             &mut test_db.db,
-            &util::get_rand(PartitionName(Encoding::Csv, Compression::Zip)),
+            &testutil::get_rand(PartitionName(Encoding::Csv, Compression::Zip)),
         )
         .await;
     assert!(partition_result.is_err());
@@ -210,7 +241,7 @@ async fn test_module_integration() {
     assert_ne!(partition.id, 0);
     assert_eq!(partition.id, parition_id); // check that the id is the same from registeration
 
-    let added_dataset_name = util::get_rand(String(20));
+    let added_dataset_name = testutil::get_rand(String(20));
     // add another dataset, use to test manager-owned datasets
     let added_dataset = manager
         .register_dataset(
@@ -219,8 +250,8 @@ async fn test_module_integration() {
             Compression::Tar,
             Encoding::NdJson,
             Classification::Public,
-            util::rand_schema(),
-            util::get_rand(String(40)),
+            testutil::rand_schema(),
+            testutil::get_rand(String(40)),
         )
         .await
         .unwrap();
@@ -251,8 +282,8 @@ async fn test_module_integration() {
 
     // add a partition to the new dataset
     let added_partition_name =
-        &util::get_rand(PartitionName(Encoding::PlainText, Compression::Zip));
-    let added_partition_url = &util::get_rand(PartitionUrl(
+        &testutil::get_rand(PartitionName(Encoding::PlainText, Compression::Zip));
+    let added_partition_url = &testutil::get_rand(PartitionUrl(
         Encoding::PlainText,
         Compression::Zip,
         Classification::Confidential,
@@ -280,8 +311,8 @@ async fn test_module_integration() {
     let added_dataset_add_partition = added_dataset
         .register_partition(
             &mut test_db.db,
-            util::get_rand(PartitionName(Encoding::NdJson, Compression::Tar)),
-            util::get_rand(PartitionUrl(
+            testutil::get_rand(PartitionName(Encoding::NdJson, Compression::Tar)),
+            testutil::get_rand(PartitionUrl(
                 Encoding::NdJson,
                 Compression::Tar,
                 Classification::Public,
@@ -312,7 +343,7 @@ async fn test_module_integration() {
         .register_partition(
             &mut test_db.db,
             data_dictionary::dict::PARTITION_LATEST,
-            util::get_rand(PartitionUrl(
+            testutil::get_rand(PartitionUrl(
                 Encoding::Csv,
                 Compression::Uncompressed,
                 Classification::Public,
@@ -321,29 +352,29 @@ async fn test_module_integration() {
         .await;
     assert!(bad_partition_result.is_err());
 
-    util::drop_test_db(&mut test_db).await.unwrap();
+    testutil::drop_test_db(&mut test_db).await.unwrap();
 }
 
 #[tokio::test]
 async fn test_range_query() {
-    let mut test_db = util::new_test_db().await.unwrap();
+    let mut test_db = testutil::new_test_db().await.unwrap();
 
     let manager = Manager::register(
         &mut test_db.db,
-        util::get_rand(Email),
-        util::get_rand(Password),
+        testutil::get_rand(Email),
+        testutil::get_rand(Password),
     )
     .await
     .unwrap();
     let dataset = manager
         .register_dataset(
             &mut test_db.db,
-            util::get_rand(String(25)),
+            testutil::get_rand(String(25)),
             Compression::Uncompressed,
             Encoding::Tsv,
             Classification::Public,
-            util::rand_schema(),
-            util::get_rand(String(50)),
+            testutil::rand_schema(),
+            testutil::get_rand(String(50)),
         )
         .await
         .unwrap();
@@ -354,8 +385,8 @@ async fn test_range_query() {
         dataset
             .register_partition(
                 &mut test_db.db,
-                util::get_rand(PartitionName(Encoding::Protobuf, Compression::Tar)),
-                util::get_rand(PartitionUrl(
+                testutil::get_rand(PartitionName(Encoding::Protobuf, Compression::Tar)),
+                testutil::get_rand(PartitionUrl(
                     Encoding::Protobuf,
                     Compression::Tar,
                     Classification::Public,
@@ -498,16 +529,16 @@ async fn test_range_query() {
         .created_at
         .lt(&actual_count_offset.get(0).unwrap().created_at));
 
-    util::drop_test_db(&mut test_db).await.unwrap();
+    testutil::drop_test_db(&mut test_db).await.unwrap();
 }
 
 #[tokio::test]
 async fn test_manager() {
-    let mut test_db = util::new_test_db().await.unwrap();
+    let mut test_db = testutil::new_test_db().await.unwrap();
 
     // insert a manager using an email and password
-    let email = util::get_rand(Email);
-    let password = util::get_rand(Password);
+    let email = testutil::get_rand(Email);
+    let password = testutil::get_rand(Password);
 
     // check that the manager value is ok and has expected fields set
     let registered = test_db
@@ -549,15 +580,15 @@ async fn test_manager() {
     let invalid = test_db.db.auth_manager(&email, "invalidPassword").await;
     assert!(invalid.is_err());
 
-    util::drop_test_db(&mut test_db).await.unwrap();
+    testutil::drop_test_db(&mut test_db).await.unwrap();
 }
 
 use serde_json;
 
 #[tokio::test]
 async fn test_dataset_from_config() {
-    let mut test_db = util::new_test_db().await.unwrap();
-    let manager = util::create_manager(&mut test_db).await.unwrap();
+    let mut test_db = testutil::new_test_db().await.unwrap();
+    let manager = testutil::create_manager(&mut test_db).await.unwrap();
     let dd: &str = include_str!("json/dd.json");
     let config: DatasetConfig = serde_json::from_str(dd).unwrap();
     let dataset = manager
@@ -594,5 +625,5 @@ async fn test_dataset_from_config() {
     assert_eq!(found.id, dataset.id);
     assert_eq!(found.schema, dataset.schema);
 
-    util::drop_test_db(&mut test_db).await.unwrap();
+    testutil::drop_test_db(&mut test_db).await.unwrap();
 }

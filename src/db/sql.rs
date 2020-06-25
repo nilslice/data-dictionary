@@ -28,6 +28,10 @@ pub const REGISTER_PARTITION: &str = r#"
     RETURNING partition_id, partition_name, partition_url, dataset_id, created_at, updated_at
 "#;
 
+pub const DELETE_PARTITION: &str = r#"
+    DELETE FROM partitions where dataset_id = $1 AND partition_name = $2
+"#;
+
 pub const FIND_PARTITION: &str = r#"
     SELECT partition_id, partition_name, partition_url, dataset_id, created_at, updated_at
     FROM partitions 

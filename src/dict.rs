@@ -248,13 +248,6 @@ pub struct DatasetConfig {
     pub schema: DatasetSchema,
 }
 
-use crate::pubsub::Message;
-impl From<&Message> for Partition {
-    fn from(m: &Message) -> Self {
-        todo!()
-    }
-}
-
 /// concrete data source. For local development and testing, a local, mocked, or in-memory database
 /// may be used, compared with a remote database server when deployed.
 impl Dataset {
@@ -270,9 +263,9 @@ impl Dataset {
         svc.list_datasets().await
     }
 
-    pub async fn delete(svc: &mut impl DataService, dataset: &Dataset) -> Result<(), Error> {
-        info!("deleting dataset '{}' and its partitions", dataset.name);
-        svc.delete_dataset(dataset).await
+    pub async fn delete(self, svc: &mut impl DataService) -> Result<(), Error> {
+        info!("deleting dataset '{}' and its partitions", self.name);
+        svc.delete_dataset(&self).await
     }
 
     /// Inserts a partition into the database, using the current dataset as its reference.
@@ -289,6 +282,19 @@ impl Dataset {
         );
         svc.register_partition(&self, name.as_ref(), url.as_ref())
             .await
+    }
+
+    pub async fn delete_partition(
+        &self,
+        svc: &mut impl DataService,
+        name: impl AsRef<str>,
+    ) -> Result<(), Error> {
+        info!(
+            "deleting partition '{}' for dataset: {}",
+            name.as_ref(),
+            &self.name
+        );
+        svc.delete_partition(&self, name.as_ref()).await
     }
 
     /// Retrieves a partition based on the name provided, within the current dataset.
