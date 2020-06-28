@@ -1,3 +1,6 @@
+use std::collections::HashMap;
+use std::env;
+
 use crate::error::Error;
 
 use chrono::{DateTime, Utc};
@@ -8,9 +11,6 @@ use reqwest::{
     IntoUrl, Method, RequestBuilder, StatusCode,
 };
 use serde::{Deserialize, Serialize};
-
-use std::collections::HashMap;
-use std::env;
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]

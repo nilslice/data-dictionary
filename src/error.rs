@@ -1,7 +1,9 @@
 use std::error::Error as StdErr;
 use std::fmt;
+use std::fmt::Debug;
 
 type PgError = tokio_postgres::error::Error;
+type PoolError<E> = bb8_postgres::bb8::RunError<E>;
 
 #[derive(Debug)]
 pub enum Error {
@@ -12,6 +14,7 @@ pub enum Error {
     Utf8(std::string::FromUtf8Error),
     Auth(String),
     Http(String),
+    Pool(String),
 }
 
 impl fmt::Display for Error {
@@ -35,5 +38,11 @@ impl From<PgError> for Error {
 impl From<std::string::FromUtf8Error> for Error {
     fn from(e: std::string::FromUtf8Error) -> Self {
         Error::Utf8(e)
+    }
+}
+
+impl<E: Debug> From<PoolError<E>> for Error {
+    fn from(e: PoolError<E>) -> Self {
+        Error::Pool(format!("{:?}", e))
     }
 }

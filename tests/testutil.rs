@@ -18,13 +18,15 @@ pub async fn reset_db(conn: &mut TestDb) -> Result<(), Error> {
 pub async fn clear_db(conn: &mut TestDb) -> Result<(), Error> {
     conn.db
         .client
+        .get()
+        .await?
         .batch_execute(include_str!("sql/drop_all.sql"))
         .await
         .map_err(|e| Error::Generic(Box::new(e)))
 }
 
 pub async fn new_test_db() -> Result<TestDb, Error> {
-    let db = Db::connect(None).await?;
+    let db = Db::connect(None, None).await?;
     // create random schema name and use it for the current connection (used by single test)
     let mut test_db = TestDb {
         db,
@@ -33,6 +35,8 @@ pub async fn new_test_db() -> Result<TestDb, Error> {
     test_db
         .db
         .client
+        .get()
+        .await?
         .batch_execute(&format!(
             "CREATE SCHEMA IF NOT EXISTS {}; SET search_path TO {};",
             test_db.schema, test_db.schema
@@ -44,11 +48,12 @@ pub async fn new_test_db() -> Result<TestDb, Error> {
     Ok(test_db)
 }
 
-// TODO: impl Drop for TestDb, if possible, whereby it handles this operation automatically
 pub async fn drop_test_db(conn: &mut TestDb) -> Result<(), Error> {
     let _ = conn
         .db
         .client
+        .get()
+        .await?
         .simple_query(&format!("DROP SCHEMA IF EXISTS {} CASCADE;", conn.schema))
         .await?;
 

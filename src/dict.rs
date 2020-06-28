@@ -92,7 +92,7 @@ impl Manager {
 }
 
 /// An Encoding is used to indicate the data encoding within the file(s).
-#[derive(Debug, FromSql, ToSql, Serialize, Deserialize)]
+#[derive(Debug, FromSql, ToSql, Serialize, Deserialize, Clone)]
 #[postgres(name = "encoding_t")]
 pub enum Encoding {
     #[postgres(name = "plaintext")]
@@ -149,7 +149,7 @@ impl FileExt for Encoding {
 }
 
 /// A Compression is used to indicate the type of compression used (if any) within the file(s).
-#[derive(Debug, FromSql, ToSql, Serialize, Deserialize)]
+#[derive(Debug, FromSql, ToSql, Serialize, Deserialize, Clone)]
 #[postgres(name = "compression_t")]
 pub enum Compression {
     #[postgres(name = "uncompressed")]
@@ -187,7 +187,7 @@ impl FileExt for Compression {
 }
 
 /// A Classification is used to indicate the level of security needed to protect datasets.
-#[derive(Debug, FromSql, ToSql, Serialize, Deserialize)]
+#[derive(Debug, FromSql, ToSql, Serialize, Deserialize, Clone)]
 #[postgres(name = "classification_t")]
 pub enum Classification {
     #[postgres(name = "confidential")]
@@ -238,7 +238,7 @@ pub struct Dataset {
 }
 
 // DatasetConfig is the dd.json file
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct DatasetConfig {
     pub name: String,
     pub classification: Classification,

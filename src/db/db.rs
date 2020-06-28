@@ -11,20 +11,16 @@ use crate::service::DataService;
 
 use argon2rs;
 use async_trait::async_trait;
+use bb8_postgres::{bb8::Pool, PostgresConnectionManager};
 use log;
 use postgres_types::ToSql;
 use rand::Rng;
-use tokio;
-use tokio_postgres::{row::Row, Client, NoTls};
+use tokio_postgres::{row::Row, NoTls};
 use uuid::Uuid;
 
 pub mod migrate {
     use refinery::embed_migrations as embed;
     embed!("migrations");
-}
-
-pub struct Db {
-    pub client: Client,
 }
 
 pub const CHARACTER_SET: &str = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
@@ -51,33 +47,59 @@ fn test_rand() {
     }
 }
 
+type DbPool = Pool<PostgresConnectionManager<NoTls>>;
+
+#[derive(Clone)]
+pub struct Db {
+    pub client: DbPool,
+}
+
+pub struct PoolConfig {
+    pub min_idle: u32,
+    pub max_size: u32,
+}
+
 impl Db {
-    pub async fn connect(params: Option<String>) -> Result<Self, Error> {
-        let (client, conn) = tokio_postgres::connect(
+    pub async fn connect(params: Option<String>, cfg: Option<PoolConfig>) -> Result<Self, Error> {
+        Ok(Db {
+            client: Db::create_pool(params, cfg).await?,
+        })
+    }
+
+    pub async fn migrate(&mut self) -> Result<(), Error> {
+        migrate::migrations::runner()
+            .run_async(&mut *self.client.get().await?)
+            .await
+            .map(|_| ())
+            .map_err(|e| Error::Generic(Box::new(e)))
+    }
+
+    pub async fn create_pool(
+        params: Option<String>,
+        cfg: Option<PoolConfig>,
+    ) -> Result<DbPool, Error> {
+        let manager = PostgresConnectionManager::new_from_stringlike(
             &params.unwrap_or_else(|| {
                 env::var("DD_DATABASE_PARAMS")
                     .unwrap_or_else(|_| "host=127.0.0.1 user=postgres port=5432".into())
             }),
             NoTls,
-        )
-        .await?;
-        tokio::spawn(async move {
-            if let Err(e) = conn.await {
-                log::error!("postgres connection error: {}", e);
-            }
-        });
+        )?;
 
-        Ok(Db { client })
-    }
+        let mut min_idle: u32 = 1;
+        let mut max_size: u32 = 1;
 
-    pub async fn migrate(&mut self) -> Result<(), Error> {
-        match migrate::migrations::runner()
-            .run_async(&mut self.client)
-            .await
-        {
-            Err(e) => Err(Error::Generic(Box::new(e))),
-            _ => Ok(()),
+        if let Some(pool_cfg) = cfg {
+            min_idle = pool_cfg.min_idle;
+            max_size = pool_cfg.max_size;
         }
+
+        Pool::builder()
+            .min_idle(Some(min_idle))
+            .max_size(max_size)
+            .build(manager)
+            .await
+            .map_err(|e| Error::Generic(Box::new(e)))
     }
 }
 
@@ -192,11 +214,12 @@ impl DataService for Db {
         schema: DatasetSchema,
         description: &str,
     ) -> Result<Dataset, Error> {
-        let stmt = self.client.prepare(sql::REGISTER_DATASET).await?;
         Ok(self
             .client
+            .get()
+            .await?
             .query_one(
-                &stmt,
+                sql::REGISTER_DATASET,
                 &[
                     &name,
                     &manager.id,
@@ -212,15 +235,21 @@ impl DataService for Db {
     }
 
     async fn find_dataset(&mut self, name: &str) -> Result<Dataset, Error> {
-        let stmt = self.client.prepare(sql::FIND_DATASET).await?;
-        Ok(self.client.query_one(&stmt, &[&name]).await?.into())
+        Ok(self
+            .client
+            .get()
+            .await?
+            .query_one(sql::FIND_DATASET, &[&name])
+            .await?
+            .into())
     }
 
     async fn list_datasets(&mut self) -> Result<Vec<Dataset>, Error> {
-        let stmt = self.client.prepare(sql::LIST_DATASETS).await?;
         Ok(self
             .client
-            .query(&stmt, &[])
+            .get()
+            .await?
+            .query(sql::LIST_DATASETS, &[])
             .await?
             .iter()
             .map(Dataset::from)
@@ -228,9 +257,10 @@ impl DataService for Db {
     }
 
     async fn delete_dataset(&mut self, dataset: &Dataset) -> Result<(), Error> {
-        let stmt = self.client.prepare(sql::DELETE_DATASET).await?;
         self.client
-            .execute(&stmt, &[&dataset.name])
+            .get()
+            .await?
+            .execute(sql::DELETE_DATASET, &[&dataset.name])
             .await
             .map(|_| ())
             .map_err(|e| Error::Generic(Box::new(e)))
@@ -254,10 +284,14 @@ impl DataService for Db {
             ));
         }
 
-        let stmt = self.client.prepare(sql::REGISTER_PARTITION).await?;
         Ok(self
             .client
-            .query_one(&stmt, &[&partition_name, &partition_url, &dataset.id])
+            .get()
+            .await?
+            .query_one(
+                sql::REGISTER_PARTITION,
+                &[&partition_name, &partition_url, &dataset.id],
+            )
             .await?
             .into())
     }
@@ -267,9 +301,10 @@ impl DataService for Db {
         dataset: &Dataset,
         partition_name: &str,
     ) -> Result<(), Error> {
-        let stmt = self.client.prepare(sql::DELETE_PARTITION).await?;
         self.client
-            .execute(&stmt, &[&dataset.id, &partition_name])
+            .get()
+            .await?
+            .execute(sql::DELETE_PARTITION, &[&dataset.id, &partition_name])
             .await
             .map(|_| ())
             .map_err(|e| Error::Generic(Box::new(e)))
@@ -288,16 +323,21 @@ impl DataService for Db {
             sql_querytype.1 = PartitionQuery::Latest;
         }
 
-        let stmt = self.client.prepare(sql_querytype.0).await?;
         match sql_querytype.1 {
             PartitionQuery::Named => Ok(self
                 .client
-                .query_one(&stmt, &[&partition_name, &dataset.id])
+                .get()
+                .await?
+                .query_one(sql_querytype.0, &[&partition_name, &dataset.id])
                 .await?
                 .into()),
-            PartitionQuery::Latest => {
-                Ok(self.client.query_one(&stmt, &[&dataset.id]).await?.into())
-            }
+            PartitionQuery::Latest => Ok(self
+                .client
+                .get()
+                .await?
+                .query_one(sql_querytype.0, &[&dataset.id])
+                .await?
+                .into()),
         }
     }
 
@@ -319,6 +359,8 @@ impl DataService for Db {
 
         Ok(self
             .client
+            .get()
+            .await?
             .query(&query as &str, &bindvars[..])
             .await?
             .iter()
@@ -327,10 +369,11 @@ impl DataService for Db {
     }
 
     async fn list_partitions(&mut self, dataset: &Dataset) -> Result<Vec<Partition>, Error> {
-        let stmt = self.client.prepare(sql::LIST_PARTITIONS).await?;
         Ok(self
             .client
-            .query(&stmt, &[&dataset.id])
+            .get()
+            .await?
+            .query(sql::LIST_PARTITIONS, &[&dataset.id])
             .await?
             .iter()
             .map(Partition::from)
@@ -356,23 +399,33 @@ impl DataService for Db {
         let salt = rand(32, CHARACTER_SET.into());
         let hash = argon2rs::argon2d_simple(&password, &salt).to_vec();
         let api_key = Uuid::new_v4();
-        let stmt = self.client.prepare(sql::REGISTER_MANAGER).await?;
-
         Ok(self
             .client
-            .query_one(&stmt, &[&email, &hash, &salt, &api_key])
+            .get()
+            .await?
+            .query_one(sql::REGISTER_MANAGER, &[&email, &hash, &salt, &api_key])
             .await?
             .into())
     }
 
     async fn find_manager(&mut self, api_key: &Uuid) -> Result<Manager, Error> {
-        let stmt = self.client.prepare(sql::FIND_MANAGER).await?;
-        Ok(self.client.query_one(&stmt, &[api_key]).await?.into())
+        Ok(self
+            .client
+            .get()
+            .await?
+            .query_one(sql::FIND_MANAGER, &[api_key])
+            .await?
+            .into())
     }
 
     async fn auth_manager(&mut self, email: &str, password: &str) -> Result<Manager, Error> {
-        let stmt = self.client.prepare(sql::AUTH_MANAGER).await?;
-        let manager: Manager = self.client.query_one(&stmt, &[&email]).await?.into();
+        let manager: Manager = self
+            .client
+            .get()
+            .await?
+            .query_one(sql::AUTH_MANAGER, &[&email])
+            .await?
+            .into();
 
         // validate that the password provided is the same as our stored value
         let hash = argon2rs::argon2d_simple(&password, &manager.salt);
@@ -384,10 +437,11 @@ impl DataService for Db {
     }
 
     async fn manager_datasets(&mut self, api_key: &Uuid) -> Result<Vec<Dataset>, Error> {
-        let stmt = self.client.prepare(sql::MANAGED_DATASETS).await?;
         Ok(self
             .client
-            .query(&stmt, &[api_key])
+            .get()
+            .await?
+            .query(sql::MANAGED_DATASETS, &[api_key])
             .await?
             .iter()
             .map(Dataset::from)
