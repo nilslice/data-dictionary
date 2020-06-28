@@ -168,7 +168,7 @@ impl Subscriber {
             .send()
             .await
             .map(|_| ())
-            .map_err(|e| Error::Http(format!("failed to make subscription ack request: {}", e)))
+            .map_err(|e| Error::Http(format!("failed to make ack request: {}", e)))
     }
 
     pub fn topic(&self) -> String {

@@ -222,6 +222,24 @@ pub async fn register_dataset(
     }
 }
 
+pub async fn list_datasets(srv: Data<Server>) -> Result<HttpResponse, Error> {
+    let mut resp = HttpResponse::build(StatusCode::OK);
+
+    let datasets = Dataset::list(&mut srv.db.clone()).await;
+    if let Ok(datasets) = datasets {
+        resp.json(datasets).await
+    } else {
+        let msg = "failed to list datasets";
+        let err = datasets.err().expect("no error found");
+        log::error!("{}: {}", msg, err);
+
+        match err {
+            DDError::Sql(_) => json_message(resp, StatusCode::NOT_FOUND, "no datasets found").await,
+            _ => json_message(resp, StatusCode::INTERNAL_SERVER_ERROR, msg).await,
+        }
+    }
+}
+
 fn json_message(
     mut builder: HttpResponseBuilder,
     status: StatusCode,

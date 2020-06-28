@@ -2,10 +2,10 @@ use std::path::Path;
 
 use crate::db::Db;
 use crate::dict::Dataset;
-use crate::error::Error;
+use crate::error::{Error, PubsubAction};
 use crate::pubsub::{Attributes, Event, Payload};
 
-pub const FILENAME_DD_JSON: &str = "dd.json";
+const FILENAME_DD_JSON: &str = "dd.json";
 
 /// Payloads may represent either a dataset (object path + dd.json "DatasetConfig") or a new
 /// partition which would have a path root equivalent to an existing dataset name.
@@ -18,52 +18,65 @@ pub async fn handle_payload(db: &mut Db, b64_data: &str, attrs: &Attributes) -> 
     );
 
     let path = Path::new(&payload.name);
-    let dataset = Dataset::find(db, dataset_name(path)?).await?;
-
-    match attrs.event_type {
-        Event::ObjectFinalize | Event::ObjectMetadataUpdate | Event::ObjectArchive => {
-            if let Some(name) = partition_name(path)? {
-                if let Err(e) = dataset
-                    .register_partition(db, &name, payload.self_link)
-                    .await
-                {
-                    log::error!(
-                        "failed to register partition '{}' for dataset '{}': {}",
-                        name,
-                        dataset.name,
-                        e
-                    );
+    let dataset = Dataset::find(db, dataset_name(path)?).await;
+    if let Ok(dataset) = dataset {
+        match attrs.event_type {
+            Event::ObjectFinalize | Event::ObjectMetadataUpdate | Event::ObjectArchive => {
+                if let Some(name) = partition_name(path)? {
+                    if let Err(e) = dataset
+                        .register_partition(db, &name, payload.self_link)
+                        .await
+                    {
+                        log::error!(
+                            "failed to register partition '{}' for dataset '{}': {}",
+                            name,
+                            dataset.name,
+                            e
+                        );
+                    }
+                } else {
                 }
-            }
 
-            Ok(())
-        }
-        Event::ObjectDelete => {
-            // skip if the ObjectDelete event was sent from an overwrite operation
-            if attrs.overwritten_by_generation.is_some() {
-                return Ok(());
+                Ok(())
             }
+            Event::ObjectDelete => {
+                // skip if the ObjectDelete event was sent from an overwrite operation
+                if attrs.overwritten_by_generation.is_some() {
+                    return Ok(());
+                }
 
-            if let Some(name) = partition_name(path)? {
-                if let Err(e) = dataset.delete_partition(db, &name).await {
-                    log::error!(
-                        "failed to delete partition '{}' from dataset '{}': {}",
-                        name,
-                        dataset.name,
-                        e
-                    );
+                if let Some(name) = partition_name(path)? {
+                    if let Err(e) = dataset.delete_partition(db, &name).await {
+                        log::error!(
+                            "failed to delete partition '{}' from dataset '{}': {}",
+                            name,
+                            dataset.name,
+                            e
+                        );
+                        return Err(e);
+                    }
+                    return Ok(());
+                }
+
+                let dataset_name = dataset.name.clone();
+                if let Err(e) = dataset.delete(db).await {
+                    log::error!("failed to delete dataset '{}', error: {}", dataset_name, e);
                     return Err(e);
                 }
-                return Ok(());
-            }
 
-            let dataset_name = dataset.name.clone();
-            if let Err(e) = dataset.delete(db).await {
-                log::error!("failed to delete dataset '{}', error: {}", dataset_name, e);
-                return Err(e);
+                Ok(())
             }
-            return Ok(());
         }
+    } else {
+        if payload.name.ends_with(FILENAME_DD_JSON) || partition_name(path)?.is_none() {
+            log::info!(
+                "new object is a dataset, handled outside of pubsub: {:?}, ignore and acking",
+                payload.name
+            );
+            return Err(Error::Pubsub(PubsubAction::IgnoreAndAck));
+        }
+
+        Err(dataset.err().expect("no error for dataset failure"))
     }
 }
 

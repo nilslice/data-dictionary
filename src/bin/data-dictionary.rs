@@ -3,7 +3,7 @@ use std::time;
 
 use data_dictionary::api;
 use data_dictionary::db::{Db, PoolConfig};
-use data_dictionary::error::Error;
+use data_dictionary::error::{Error, PubsubAction};
 use data_dictionary::pubsub::Subscriber;
 use data_dictionary::util;
 
@@ -15,7 +15,7 @@ async fn main() -> Result<(), Error> {
     env_logger::init();
     log::info!("running: src/bin/data-dictionary");
     let mut db = Db::connect(
-        None,
+        None, 
         Some(PoolConfig {
             min_idle: 5,
             max_size: 30,
@@ -47,18 +47,33 @@ async fn main() -> Result<(), Error> {
                                 Ok(_) => {
                                     if let Err(e) = sub.ack(&msg.ack_id).await {
                                         log::error!(
-                                            "failed to ack pubsub message {}: {}",
+                                            "failed to ack pubsub message with ack_id '{}': {}",
                                             &msg.ack_id,
                                             e
                                         )
                                     }
                                 }
-                                Err(e) => log::error!(
-                            "failed to handle event '{:?}' message_id = '{}', will be retried: {}",
-                            msg.message.attributes.event_type,
-                            msg.message.message_id,
-                            e
-                        ),
+                                Err(e) => {
+                                    match e {
+                                        Error::Pubsub(action) => match action {
+                                            PubsubAction::IgnoreAndAck => {
+                                                if let Err(e) = sub.ack(&msg.ack_id).await {
+                                                    log::error!(
+                                                        "failed to ack pubsub message with ack_id '{}': {}",
+                                                        &msg.ack_id,
+                                                        e
+                                                    )
+                                                } 
+                                            }
+                                        },
+                                        _ => log::error!(
+                                            "failed to handle event '{:?}' message_id = '{}', will be retried: {}",
+                                            msg.message.attributes.event_type,
+                                            msg.message.message_id,
+                                            e
+                                        )
+                                    }
+                                },
                             }
                         }
                     }
@@ -76,6 +91,7 @@ async fn main() -> Result<(), Error> {
         let apidb = apidb.clone();
         App::new()
             .data(api::Server { db: apidb })
+            .route("/datasets", web::get().to(api::list_datasets))
             .route(
                 "/dataset/{dataset_name}/latest",
                 web::get().to(api::latest_partition),

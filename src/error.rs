@@ -15,6 +15,12 @@ pub enum Error {
     Auth(String),
     Http(String),
     Pool(String),
+    Pubsub(PubsubAction),
+}
+
+#[derive(Debug)]
+pub enum PubsubAction {
+    IgnoreAndAck,
 }
 
 impl fmt::Display for Error {
