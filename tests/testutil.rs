@@ -1,7 +1,5 @@
 use data_dictionary::db::{rand, Db, CHARACTER_SET};
-use data_dictionary::dict::{
-    Classification, Compression, DatasetSchema, Encoding, FileExt, Manager,
-};
+use data_dictionary::dict::{Classification, Compression, DatasetSchema, FileExt, Format, Manager};
 use data_dictionary::error::Error;
 
 pub struct TestDb {
@@ -79,25 +77,25 @@ fn rand_password() -> String {
     rand(20, CHARACTER_SET.into())
 }
 
-fn rand_partition_name(enc: Encoding, comp: Compression) -> String {
+fn rand_partition_name(format: Format, comp: Compression) -> String {
     let ts = chrono::Utc::now().to_string().replace(" ", "-");
-    format!("partition-{}.{}.{}", ts, enc.to_ext(), comp.to_ext())
+    format!("partition-{}.{}.{}", ts, format.to_ext(), comp.to_ext())
         .trim_end_matches('.')
         .into()
 }
 
 #[test]
 fn test_rand_partition_name() {
-    assert!(rand_partition_name(Encoding::Protobuf, Compression::Uncompressed).ends_with(".pb"));
-    assert!(rand_partition_name(Encoding::Csv, Compression::Tar).ends_with(".csv.tar.gz"));
+    assert!(rand_partition_name(Format::Protobuf, Compression::Uncompressed).ends_with(".pb"));
+    assert!(rand_partition_name(Format::Csv, Compression::Tar).ends_with(".csv.tar.gz"));
 }
 
-fn rand_partition_url(enc: Encoding, comp: Compression, class: Classification) -> String {
+fn rand_partition_url(format: Format, comp: Compression, class: Classification) -> String {
     format!(
         "cloud://org.datasets.dev.{}/{}/{}",
         class,
         get_rand(Rand::String(20)),
-        rand_partition_name(enc, comp)
+        rand_partition_name(format, comp)
     )
 }
 
@@ -105,7 +103,7 @@ fn rand_partition_url(enc: Encoding, comp: Compression, class: Classification) -
 fn test_rand_url() {
     println!(
         "{}",
-        rand_partition_url(Encoding::Json, Compression::Tar, Classification::Sensitive)
+        rand_partition_url(Format::Json, Compression::Tar, Classification::Sensitive)
     );
 }
 
@@ -117,8 +115,8 @@ pub enum Rand {
     Email,
     Password,
     String(usize),
-    PartitionName(Encoding, Compression),
-    PartitionUrl(Encoding, Compression, Classification),
+    PartitionName(Format, Compression),
+    PartitionUrl(Format, Compression, Classification),
     SchemaName,
 }
 
@@ -138,8 +136,8 @@ pub fn get_rand(of: Rand) -> String {
         Rand::Email => rand_valid_email(),
         Rand::Password => rand_password(),
         Rand::String(s) => rand(s, CHARACTER_SET.into()),
-        Rand::PartitionName(enc, comp) => rand_partition_name(enc, comp),
-        Rand::PartitionUrl(enc, comp, class) => rand_partition_url(enc, comp, class),
+        Rand::PartitionName(format, comp) => rand_partition_name(format, comp),
+        Rand::PartitionUrl(format, comp, class) => rand_partition_url(format, comp, class),
         Rand::SchemaName => rand_schema_name(),
     }
 }

@@ -76,7 +76,9 @@ pub async fn handle_payload(db: &mut Db, b64_data: &str, attrs: &Attributes) -> 
             return Err(Error::Pubsub(PubsubAction::IgnoreAndAck));
         }
 
-        Err(dataset.err().expect("no error for dataset failure"))
+        Err(dataset
+            .err()
+            .expect("no error for dataset failure specified"))
     }
 }
 

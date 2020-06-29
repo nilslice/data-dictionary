@@ -3,5 +3,6 @@ pub mod db;
 pub mod dict;
 pub mod error;
 pub mod pubsub;
+pub mod pubsub_rt;
 pub mod service;
 pub mod util;

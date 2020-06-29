@@ -62,7 +62,7 @@ impl Manager {
         svc: &mut impl DataService,
         name: impl AsRef<str>,
         compression: Compression,
-        encoding: Encoding,
+        format: Format,
         classification: Classification,
         schema: DatasetSchema,
         description: impl AsRef<str>,
@@ -76,7 +76,7 @@ impl Manager {
             &self,
             name.as_ref(),
             compression,
-            encoding,
+            format,
             classification,
             schema,
             description.as_ref(),
@@ -91,10 +91,10 @@ impl Manager {
     }
 }
 
-/// An Encoding is used to indicate the data encoding within the file(s).
+/// A Format is used to indicate the data format within the file(s).
 #[derive(Debug, FromSql, ToSql, Serialize, Deserialize, Clone)]
-#[postgres(name = "encoding_t")]
-pub enum Encoding {
+#[postgres(name = "format_t")]
+pub enum Format {
     #[postgres(name = "plaintext")]
     #[serde(rename = "plaintext")]
     PlainText,
@@ -115,7 +115,7 @@ pub enum Encoding {
     Protobuf,
 }
 
-impl std::fmt::Display for Encoding {
+impl std::fmt::Display for Format {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", format!("{:?}", self).to_lowercase())
     }
@@ -123,27 +123,27 @@ impl std::fmt::Display for Encoding {
 
 #[test]
 fn test_display_encoding() {
-    assert_eq!("plaintext", format!("{}", Encoding::PlainText));
-    assert_eq!("json", format!("{}", Encoding::Json));
-    assert_eq!("ndjson", format!("{}", Encoding::NdJson));
-    assert_eq!("csv", format!("{}", Encoding::Csv));
-    assert_eq!("tsv", format!("{}", Encoding::Tsv));
-    assert_eq!("protobuf", format!("{}", Encoding::Protobuf));
+    assert_eq!("plaintext", format!("{}", Format::PlainText));
+    assert_eq!("json", format!("{}", Format::Json));
+    assert_eq!("ndjson", format!("{}", Format::NdJson));
+    assert_eq!("csv", format!("{}", Format::Csv));
+    assert_eq!("tsv", format!("{}", Format::Tsv));
+    assert_eq!("protobuf", format!("{}", Format::Protobuf));
 }
 
 pub trait FileExt {
     fn to_ext(&self) -> &str;
 }
 
-impl FileExt for Encoding {
+impl FileExt for Format {
     fn to_ext(&self) -> &str {
         match self {
-            Encoding::PlainText => "txt",
-            Encoding::Json => "json",
-            Encoding::NdJson => "ndjson",
-            Encoding::Csv => "csv",
-            Encoding::Tsv => "tsv",
-            Encoding::Protobuf => "pb",
+            Format::PlainText => "txt",
+            Format::Json => "json",
+            Format::NdJson => "ndjson",
+            Format::Csv => "csv",
+            Format::Tsv => "tsv",
+            Format::Protobuf => "pb",
         }
     }
 }
@@ -230,7 +230,7 @@ pub struct Dataset {
     pub name: String,
     pub classification: Classification,
     pub compression: Compression,
-    pub encoding: Encoding,
+    pub format: Format,
     pub description: String,
     pub schema: DatasetSchema,
     pub created_at: DateTime<Utc>,
@@ -243,7 +243,7 @@ pub struct DatasetConfig {
     pub name: String,
     pub classification: Classification,
     pub compression: Compression,
-    pub encoding: Encoding,
+    pub format: Format,
     pub description: String,
     pub schema: DatasetSchema,
 }
@@ -338,7 +338,7 @@ impl Dataset {
 }
 
 /// A Partition is a partial dataset, containing a subset of data. Each partition within a Dataset
-/// must follow the same schema, compression, and encoding.
+/// must follow the same schema, compression, and format.
 #[derive(Debug, PartialEq, Serialize)]
 pub struct Partition {
     #[serde(rename(serialize = "partition_id"))]

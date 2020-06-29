@@ -18,7 +18,7 @@ CREATE TYPE classification_t AS ENUM (
     'public'
 );
 
-CREATE TYPE encoding_t AS ENUM (
+CREATE TYPE format_t AS ENUM (
     'plaintext',
     'json',
     'ndjson',
@@ -37,7 +37,7 @@ CREATE TABLE IF NOT EXISTS datasets (
     dataset_id SERIAL PRIMARY KEY,
     dataset_name VARCHAR(255) UNIQUE NOT NULL, 
     dataset_desc TEXT NOT NULL,
-    dataset_encoding encoding_t NOT NULL, 
+    dataset_format format_t NOT NULL, 
     dataset_compression compression_t NOT NULL,
     dataset_classification classification_t NOT NULL,
     dataset_schema hstore NOT NULL,

@@ -57,7 +57,7 @@ pub async fn find_partition(
         }
     } else {
         let msg = format!("no dataset found with name '{}'", params.dataset_name);
-        let err = dataset.err().expect("no error found");
+        let err = dataset.err().expect("no dataset error specified");
         log::error!("{}: {}", msg, err);
 
         match err {
@@ -125,7 +125,7 @@ pub async fn latest_partition(
             "failed to find dataset with name: '{}'",
             params.dataset_name
         );
-        let err = dataset.err().expect("no error found");
+        let err = dataset.err().expect("no dataset error specified");
         log::error!("{}: {}", msg, err);
 
         match err {
@@ -181,7 +181,7 @@ pub async fn register_dataset(
                 &mut srv.db.clone(),
                 &config.name,
                 config.compression.clone(),
-                config.encoding.clone(),
+                config.format.clone(),
                 config.classification.clone(),
                 config.schema.to_owned(),
                 &config.description,
@@ -205,7 +205,7 @@ pub async fn register_dataset(
         }
     } else {
         let msg = format!("failed to find manager with API key '{}'", api_key);
-        let err = manager.err().expect("no error found");
+        let err = manager.err().expect("no manager error specified");
         log::error!("{}: {}", msg, err);
 
         match err {
@@ -230,11 +230,44 @@ pub async fn list_datasets(srv: Data<Server>) -> Result<HttpResponse, Error> {
         resp.json(datasets).await
     } else {
         let msg = "failed to list datasets";
-        let err = datasets.err().expect("no error found");
+        let err = datasets.err().expect("no datasets error specified");
         log::error!("{}: {}", msg, err);
 
         match err {
             DDError::Sql(_) => json_message(resp, StatusCode::NOT_FOUND, "no datasets found").await,
+            _ => json_message(resp, StatusCode::INTERNAL_SERVER_ERROR, msg).await,
+        }
+    }
+}
+
+#[derive(Deserialize)]
+pub struct FindDataset {
+    dataset_name: String,
+}
+
+pub async fn find_dataset(
+    srv: Data<Server>,
+    params: Path<FindDataset>,
+) -> Result<HttpResponse, Error> {
+    let mut resp = HttpResponse::build(StatusCode::OK);
+
+    let dataset = Dataset::find(&mut srv.db.clone(), &params.dataset_name).await;
+    if let Ok(dataset) = dataset {
+        resp.json(dataset).await
+    } else {
+        let msg = "failed to find dataset";
+        let err = dataset.err().expect("no dataset error specified");
+        log::error!("{}: {}", msg, err);
+
+        match err {
+            DDError::Sql(_) => {
+                json_message(
+                    resp,
+                    StatusCode::NOT_FOUND,
+                    format!("no dataset found with name '{}'", params.dataset_name),
+                )
+                .await
+            }
             _ => json_message(resp, StatusCode::INTERNAL_SERVER_ERROR, msg).await,
         }
     }

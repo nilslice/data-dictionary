@@ -1,7 +1,7 @@
 mod testutil;
 use testutil::Rand::{Email, PartitionName, PartitionUrl, Password, String};
 
-use data_dictionary::dict::{Classification, Compression, Encoding};
+use data_dictionary::dict::{Classification, Compression, Format};
 use data_dictionary::dict::{Dataset, DatasetConfig, Manager, Partition};
 use data_dictionary::service::DataService;
 
@@ -30,7 +30,7 @@ async fn test_dataset() {
             &manager,
             &dataset_name,
             Compression::Uncompressed,
-            Encoding::Json,
+            Format::Json,
             Classification::Sensitive,
             testutil::rand_schema(),
             &dataset_desc,
@@ -58,7 +58,7 @@ async fn test_dataset() {
                 &manager,
                 &testutil::get_rand(String(20)),
                 Compression::Zip,
-                Encoding::Csv,
+                Format::Csv,
                 Classification::Private,
                 testutil::rand_schema(),
                 &testutil::get_rand(String(100)),
@@ -70,12 +70,9 @@ async fn test_dataset() {
             .db
             .register_partition(
                 &dataset,
-                &testutil::get_rand(PartitionName(
-                    Encoding::PlainText,
-                    Compression::Uncompressed,
-                )),
+                &testutil::get_rand(PartitionName(Format::PlainText, Compression::Uncompressed)),
                 &testutil::get_rand(PartitionUrl(
-                    Encoding::PlainText,
+                    Format::PlainText,
                     Compression::Uncompressed,
                     Classification::Sensitive,
                 )),
@@ -99,9 +96,9 @@ async fn test_dataset() {
     assert!(latest_result.is_err());
 
     // add a partition and validate latest partition exists
-    let partition_name = testutil::get_rand(PartitionName(Encoding::Protobuf, Compression::Tar));
+    let partition_name = testutil::get_rand(PartitionName(Format::Protobuf, Compression::Tar));
     let partition_url = testutil::get_rand(PartitionUrl(
-        Encoding::Protobuf,
+        Format::Protobuf,
         Compression::Tar,
         Classification::Public,
     ));
@@ -121,9 +118,9 @@ async fn test_dataset() {
     let new_added_partition = dataset
         .register_partition(
             &mut test_db.db,
-            testutil::get_rand(PartitionName(Encoding::Csv, Compression::Zip)),
+            testutil::get_rand(PartitionName(Format::Csv, Compression::Zip)),
             testutil::get_rand(PartitionUrl(
-                Encoding::Csv,
+                Format::Csv,
                 Compression::Zip,
                 Classification::Private,
             )),
@@ -191,7 +188,7 @@ async fn test_module_integration() {
             &mut test_db.db,
             dataset_name,
             Compression::Uncompressed,
-            Encoding::Protobuf,
+            Format::Protobuf,
             Classification::Sensitive,
             testutil::rand_schema(),
             dataset_desc,
@@ -209,9 +206,9 @@ async fn test_module_integration() {
     assert_eq!(&dataset.description, dataset_desc);
 
     let partition_name =
-        testutil::get_rand(PartitionName(Encoding::Protobuf, Compression::Uncompressed));
+        testutil::get_rand(PartitionName(Format::Protobuf, Compression::Uncompressed));
     let partition_url = testutil::get_rand(PartitionUrl(
-        Encoding::Protobuf,
+        Format::Protobuf,
         Compression::Uncompressed,
         Classification::Private,
     ));
@@ -228,7 +225,7 @@ async fn test_module_integration() {
     let partition_result = dataset
         .partition(
             &mut test_db.db,
-            &testutil::get_rand(PartitionName(Encoding::Csv, Compression::Zip)),
+            &testutil::get_rand(PartitionName(Format::Csv, Compression::Zip)),
         )
         .await;
     assert!(partition_result.is_err());
@@ -248,7 +245,7 @@ async fn test_module_integration() {
             &mut test_db.db,
             added_dataset_name,
             Compression::Tar,
-            Encoding::NdJson,
+            Format::NdJson,
             Classification::Public,
             testutil::rand_schema(),
             testutil::get_rand(String(40)),
@@ -282,9 +279,9 @@ async fn test_module_integration() {
 
     // add a partition to the new dataset
     let added_partition_name =
-        &testutil::get_rand(PartitionName(Encoding::PlainText, Compression::Zip));
+        &testutil::get_rand(PartitionName(Format::PlainText, Compression::Zip));
     let added_partition_url = &testutil::get_rand(PartitionUrl(
-        Encoding::PlainText,
+        Format::PlainText,
         Compression::Zip,
         Classification::Confidential,
     ));
@@ -311,9 +308,9 @@ async fn test_module_integration() {
     let added_dataset_add_partition = added_dataset
         .register_partition(
             &mut test_db.db,
-            testutil::get_rand(PartitionName(Encoding::NdJson, Compression::Tar)),
+            testutil::get_rand(PartitionName(Format::NdJson, Compression::Tar)),
             testutil::get_rand(PartitionUrl(
-                Encoding::NdJson,
+                Format::NdJson,
                 Compression::Tar,
                 Classification::Public,
             )),
@@ -344,7 +341,7 @@ async fn test_module_integration() {
             &mut test_db.db,
             data_dictionary::dict::PARTITION_LATEST,
             testutil::get_rand(PartitionUrl(
-                Encoding::Csv,
+                Format::Csv,
                 Compression::Uncompressed,
                 Classification::Public,
             )),
@@ -371,7 +368,7 @@ async fn test_range_query() {
             &mut test_db.db,
             testutil::get_rand(String(25)),
             Compression::Uncompressed,
-            Encoding::Tsv,
+            Format::Tsv,
             Classification::Public,
             testutil::rand_schema(),
             testutil::get_rand(String(50)),
@@ -385,9 +382,9 @@ async fn test_range_query() {
         dataset
             .register_partition(
                 &mut test_db.db,
-                testutil::get_rand(PartitionName(Encoding::Protobuf, Compression::Tar)),
+                testutil::get_rand(PartitionName(Format::Protobuf, Compression::Tar)),
                 testutil::get_rand(PartitionUrl(
-                    Encoding::Protobuf,
+                    Format::Protobuf,
                     Compression::Tar,
                     Classification::Public,
                 )),
@@ -596,7 +593,7 @@ async fn test_dataset_from_config() {
             &mut test_db.db,
             config.name,
             config.compression,
-            config.encoding,
+            config.format,
             config.classification,
             config.schema,
             config.description,

@@ -2,7 +2,7 @@
     "name": "example_dataset",
     "classification": "private",
     "compression": "zip",
-    "encoding": "protobuf",
+    "format": "protobuf",
     "description": "The example_dataset is used to test datadictionary features.",
     "schema": {
         "id": "integer",

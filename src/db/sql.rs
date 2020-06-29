@@ -1,17 +1,17 @@
 pub const REGISTER_DATASET: &str = r#"
-    INSERT INTO datasets (dataset_name, manager_id, dataset_compression, dataset_encoding, dataset_classification, dataset_schema, dataset_desc) 
+    INSERT INTO datasets (dataset_name, manager_id, dataset_compression, dataset_format, dataset_classification, dataset_schema, dataset_desc) 
     VALUES ($1, $2, $3, $4, $5, $6, $7) 
-    RETURNING dataset_id, dataset_name, manager_id, dataset_compression, dataset_encoding, dataset_classification, dataset_schema, dataset_desc, created_at, updated_at
+    RETURNING dataset_id, dataset_name, manager_id, dataset_compression, dataset_format, dataset_classification, dataset_schema, dataset_desc, created_at, updated_at
 "#;
 
 pub const FIND_DATASET: &str = r#"
-    SELECT dataset_id, dataset_name, manager_id, dataset_compression, dataset_encoding, dataset_classification, dataset_schema, dataset_desc, created_at, updated_at
+    SELECT dataset_id, dataset_name, manager_id, dataset_compression, dataset_format, dataset_classification, dataset_schema, dataset_desc, created_at, updated_at
     FROM datasets
     WHERE dataset_name = $1
 "#;
 
 pub const LIST_DATASETS: &str = r#"
-    SELECT dataset_id, dataset_name, manager_id, dataset_compression, dataset_encoding, dataset_classification, dataset_schema, dataset_desc, created_at, updated_at
+    SELECT dataset_id, dataset_name, manager_id, dataset_compression, dataset_format, dataset_classification, dataset_schema, dataset_desc, created_at, updated_at
     FROM datasets
     ORDER BY created_at ASC
 "#;
@@ -59,7 +59,7 @@ pub const FIND_MANAGER: &str = r#"
 "#;
 
 pub const MANAGED_DATASETS: &str = r#"
-    SELECT dataset_id, dataset_name, datasets.manager_id, dataset_compression, dataset_encoding, dataset_classification, dataset_schema, dataset_desc, datasets.created_at, datasets.updated_at
+    SELECT dataset_id, dataset_name, datasets.manager_id, dataset_compression, dataset_format, dataset_classification, dataset_schema, dataset_desc, datasets.created_at, datasets.updated_at
     FROM datasets
     JOIN managers ON managers.manager_id = datasets.manager_id
     WHERE managers.api_key = $1

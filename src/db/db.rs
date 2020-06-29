@@ -3,7 +3,7 @@ use std::env;
 use crate::db::range_query;
 use crate::db::sql;
 use crate::dict::{
-    Classification, Compression, Dataset, DatasetSchema, Encoding, Manager, Partition, RangeParams,
+    Classification, Compression, Dataset, DatasetSchema, Format, Manager, Partition, RangeParams,
     PARTITION_LATEST,
 };
 use crate::error::Error;
@@ -111,7 +111,7 @@ impl From<&Row> for Dataset {
             manager_id: row.get("manager_id"),
             classification: row.get("dataset_classification"),
             compression: row.get("dataset_compression"),
-            encoding: row.get("dataset_encoding"),
+            format: row.get("dataset_format"),
             description: row.get("dataset_desc"),
             schema: row.get("dataset_schema"),
             created_at: row.get("created_at"),
@@ -128,7 +128,7 @@ impl From<Row> for Dataset {
             manager_id: row.get("manager_id"),
             classification: row.get("dataset_classification"),
             compression: row.get("dataset_compression"),
-            encoding: row.get("dataset_encoding"),
+            format: row.get("dataset_format"),
             description: row.get("dataset_desc"),
             schema: row.get("dataset_schema"),
             created_at: row.get("created_at"),
@@ -209,7 +209,7 @@ impl DataService for Db {
         manager: &Manager,
         name: &str,
         compression: Compression,
-        encoding: Encoding,
+        format: Format,
         classification: Classification,
         schema: DatasetSchema,
         description: &str,
@@ -224,7 +224,7 @@ impl DataService for Db {
                     &name,
                     &manager.id,
                     &compression,
-                    &encoding,
+                    &format,
                     &classification,
                     &schema,
                     &description,
