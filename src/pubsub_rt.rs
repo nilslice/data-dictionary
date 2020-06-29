@@ -23,7 +23,15 @@ pub fn start(mut rt: Runtime, mut db: Db, ms_delay: u64) {
                 }
             };
 
-            if let Some(messages) = resp.received_messages {
+            if let Some(mut messages) = resp.received_messages {
+                // In the event that multiple partitions are added in a very short period of time, 
+                // some partitions may be inserted out of order. This is atypical, since it would 
+                // likely mean files were added to cloud storage concurrently within the same 
+                // dataset. In any case, a sort is conducted using the `event_time` field of each
+                // notification message in the bucket event received from pubsub, which attempts to
+                // put inserts in the order they were written to the bucket.
+                messages.sort();
+
                 for msg in messages.iter() {
                     match util::handle_payload(
                         &mut db,

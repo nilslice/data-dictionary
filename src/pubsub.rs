@@ -1,3 +1,4 @@
+use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::env;
 
@@ -52,6 +53,29 @@ pub struct Message {
     pub ack_id: String,
     pub message: PubsubMessage,
 }
+
+impl Ord for Message {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.message
+            .attributes
+            .event_time
+            .cmp(&other.message.attributes.event_time)
+    }
+}
+
+impl PartialOrd for Message {
+    fn partial_cmp(&self, other: &Message) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl PartialEq for Message {
+    fn eq(&self, other: &Self) -> bool {
+        self.ack_id == other.ack_id
+    }
+}
+
+impl Eq for Message {}
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
