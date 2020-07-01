@@ -13,7 +13,7 @@ pub const PARTITION_LATEST: &str = "latest";
 
 /// A Manager is the person or team responsible for the creation and maintenance of one or many
 /// datasets. Manager can be an admin, and thus able to modify any dataset.
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub struct Manager {
     pub id: i32,
     pub email: String,
@@ -21,7 +21,9 @@ pub struct Manager {
     pub admin: bool,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
+    #[serde(skip_serializing)]
     pub salt: String,
+    #[serde(skip_serializing)]
     pub hash: Vec<u8>,
 }
 

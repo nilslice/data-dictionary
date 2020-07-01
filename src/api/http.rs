@@ -9,12 +9,72 @@ use actix_web::{
     web::{Data, HttpRequest, Json, Path},
     Error, HttpResponse,
 };
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 #[derive(Clone)]
 pub struct Server {
     pub db: Db,
+}
+
+#[derive(Deserialize)]
+pub struct RegisterManager {
+    email: String,
+    password: String,
+}
+
+#[derive(Serialize)]
+pub struct RestrictedManager {
+    id: i32,
+    email: String,
+    api_key: Uuid,
+}
+
+impl From<Manager> for RestrictedManager {
+    fn from(m: Manager) -> Self {
+        Self {
+            id: m.id,
+            email: m.email,
+            api_key: m.api_key,
+        }
+    }
+}
+
+pub async fn register_manager(
+    srv: Data<Server>,
+    params: Json<RegisterManager>,
+) -> Result<HttpResponse, Error> {
+    let mut resp = HttpResponse::build(StatusCode::OK);
+
+    let manager = Manager::register(&mut srv.db.clone(), &params.email, &params.password).await;
+    if let Ok(manager) = manager {
+        resp.json(RestrictedManager::from(manager)).await
+    } else {
+        let msg = format!("failed to register manager with email '{}'", params.email);
+        let err = manager.err().expect("no manager error specified");
+        log::error!("{}: {}", msg, err);
+
+        match err {
+            DDError::Sql(_) => json_message(resp, StatusCode::NOT_FOUND, msg).await,
+            DDError::InputValidation(msg) => {
+                log::info!(
+                    "request handled, input: {} {}",
+                    &params.email,
+                    &params.password
+                );
+                json_message(
+                    resp,
+                    StatusCode::BAD_REQUEST,
+                    format!(
+                        "failed to register manager, rejected input paramaters: {}",
+                        msg
+                    ),
+                )
+                .await
+            }
+            _ => json_message(resp, StatusCode::INTERNAL_SERVER_ERROR, msg).await,
+        }
+    }
 }
 
 #[derive(Deserialize)]

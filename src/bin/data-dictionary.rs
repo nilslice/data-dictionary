@@ -37,6 +37,7 @@ async fn main() -> Result<(), Error> {
         let apidb = db.clone();
         App::new()
             .data(api::Server { db: apidb })
+            .route("/manager/register", web::post().to(api::register_manager))
             .route("/datasets", web::get().to(api::list_datasets))
             .route(
                 "/dataset/{dataset_name}/latest",
