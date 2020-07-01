@@ -3,14 +3,10 @@ use std::collections::HashMap;
 use std::env;
 
 use crate::error::Error;
+use crate::gcp_client::GcpClient;
 
 use chrono::{DateTime, Utc};
-use gouth::Token;
-use reqwest::{
-    self,
-    header::{HeaderMap, AUTHORIZATION},
-    IntoUrl, Method, RequestBuilder, StatusCode,
-};
+use reqwest::{self, Method, StatusCode};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize)]
@@ -86,20 +82,19 @@ pub struct PubsubMessage {
     pub publish_time: DateTime<Utc>,
 }
 
-pub struct Subscriber {
+pub struct Subscriber<'a> {
     name: String,
     project_id: String,
     topic: String,
     service_endpoint: String,
     max_messages: usize,
-    client: reqwest::Client,
-    token: Token,
+    client: &'a GcpClient,
 }
 
-impl Subscriber {
+impl<'a> Subscriber<'a> {
     /// Creates a pub/sub subscription from the available environment variables. Requires each of
     /// DD_GCP_PROJECT_ID, DD_TOPIC_NAME, DD_SUBSCRIPTION_NAME, PUBSUB_SERVICE to be set.
-    pub async fn from_env() -> Result<Subscriber, Error> {
+    pub async fn from_env(client: &'a GcpClient) -> Result<Subscriber<'a>, Error> {
         // TODO: clean this up, it has become disgusting...
         let sub = Subscriber {
             name: env::var("DD_SUBSCRIPTION_NAME")
@@ -111,30 +106,10 @@ impl Subscriber {
                 .expect("PUBSUB_SERVICE environment variable not set"),
 
             max_messages: max_messages_from_env()?,
-            client: reqwest::Client::new(),
-            token: Token::new().map_err(|e| Error::Generic(Box::new(e)))?,
+            client,
         };
 
         Ok(sub)
-    }
-
-    fn request(&self, method: Method, url: impl IntoUrl) -> Result<RequestBuilder, Error> {
-        let mut headers = HeaderMap::new();
-        headers.insert(
-            AUTHORIZATION,
-            self.get_gcp_auth_token()?
-                .parse()
-                .expect("failed to parse header value for auth token"),
-        );
-
-        Ok(self.client.request(method, url).headers(headers))
-    }
-
-    fn get_gcp_auth_token(&self) -> Result<String, Error> {
-        match self.token.header_value() {
-            Ok(arc) => Ok(arc.as_ref().into()),
-            Err(e) => Err(Error::Generic(Box::new(e))),
-        }
     }
 
     /// Creates a subscription using the "pull" method.
@@ -144,6 +119,7 @@ impl Subscriber {
             topic: self.topic(),
         };
         let resp = self
+            .client
             .request(Method::PUT, &url)?
             .json(&sub_payload)
             .send()
@@ -170,6 +146,7 @@ impl Subscriber {
         // POST https://pubsub.googleapis.com/v1/{subscription}:pull
         let url = format!("{}/v1/{}:pull", self.service_endpoint, self.name());
         let resp = self
+            .client
             .request(Method::POST, &url)?
             .json(&serde_json::json!({ "maxMessages": self.max_messages }))
             .send()
@@ -187,7 +164,8 @@ impl Subscriber {
 
     pub async fn ack(&self, ack_id: impl AsRef<str>) -> Result<(), Error> {
         let url = format!("{}/v1/{}:acknowledge", self.service_endpoint, self.name());
-        self.request(Method::POST, &url)?
+        self.client
+            .request(Method::POST, &url)?
             .json(&serde_json::json!({ "ackIds": [ack_id.as_ref()] }))
             .send()
             .await

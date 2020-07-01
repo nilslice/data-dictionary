@@ -8,12 +8,13 @@ use crate::error::{Error, PubsubAction};
 
 use tokio::runtime::Runtime;
 
-pub fn start(mut rt: Runtime, mut db: Db, ms_delay: u64) {
+pub fn start(mut rt: Runtime, mut db: Db, ms_pull_delay: u64) {
     rt.block_on(async move {
-        let sub = Subscriber::from_env().await.unwrap();
+        let gcp_client = Default::default();
+        let sub = Subscriber::from_env(&gcp_client).await.unwrap();
         log::info!("subscription '{}' created", sub.name());
         loop {
-            thread::sleep(time::Duration::from_millis(ms_delay));
+            thread::sleep(time::Duration::from_millis(ms_pull_delay));
 
             let resp = match sub.pull().await {
                 Ok(resp) => resp,

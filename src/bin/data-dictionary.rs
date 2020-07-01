@@ -12,6 +12,7 @@ use tokio::runtime::Runtime;
 #[actix_rt::main]
 async fn main() -> Result<(), Error> {
     env_logger::init();
+
     let cfg = PoolConfig {
         min_idle: 5,
         max_size: 30,
