@@ -102,8 +102,8 @@ impl<'a> Subscriber<'a> {
             project_id: env::var("DD_GCP_PROJECT_ID")
                 .expect("DD_GCP_PROJECT_ID environment variable not set"),
             topic: env::var("DD_TOPIC_NAME").expect("DD_TOPIC_NAME environment variable not set"),
-            service_endpoint: env::var("PUBSUB_SERVICE")
-                .expect("PUBSUB_SERVICE environment variable not set"),
+            service_endpoint: env::var("DD_PUBSUB_SERVICE")
+                .expect("DD_PUBSUB_SERVICE environment variable not set"),
 
             max_messages: max_messages_from_env()?,
             client,

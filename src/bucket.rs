@@ -23,8 +23,8 @@ impl BucketManager {
     pub fn from_env(client: GcpClient) -> Self {
         // TODO: clean this up, it has become disgusting...
         Self {
-            service_endpoint: env::var("STORAGE_SERVICE")
-                .expect("STORAGE_SERVICE environment variable not set"),
+            service_endpoint: env::var("DD_STORAGE_SERVICE")
+                .expect("DD_STORAGE_SERVICE environment variable not set"),
             bucket_name_private: env::var("DD_BUCKET_NAME_PRIVATE")
                 .expect("DD_BUCKET_NAME_PRIVATE environment variable not set"),
             bucket_name_public: env::var("DD_BUCKET_NAME_PUBLIC")
