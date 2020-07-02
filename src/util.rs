@@ -5,16 +5,21 @@ use crate::dict::Dataset;
 use crate::error::{Error, PubsubAction};
 use crate::pubsub::{Attributes, Event, Payload};
 
-const FILENAME_DD_JSON: &str = "dd.json";
+pub const FILENAME_DD_JSON: &str = "dd.json";
 
 /// Payloads may represent either a dataset (object path + dd.json "DatasetConfig") or a new
 /// partition which would have a path root equivalent to an existing dataset name.
 pub async fn handle_payload(db: &mut Db, b64_data: &str, attrs: &Attributes) -> Result<(), Error> {
     let payload = base64_dec::<Payload>(b64_data)?;
+    let size: i64 = payload
+        .size
+        .parse()
+        .expect("failed to parse payload size to i64");
     log::info!(
-        "handling pubsub event: {:?}, object: {}",
+        "handling pubsub event: {:?}, object: {} ({} bytes)",
         attrs.event_type,
-        payload.name
+        payload.name,
+        size
     );
 
     let path = Path::new(&payload.name);
@@ -24,7 +29,7 @@ pub async fn handle_payload(db: &mut Db, b64_data: &str, attrs: &Attributes) -> 
             Event::ObjectFinalize | Event::ObjectMetadataUpdate | Event::ObjectArchive => {
                 if let Some(name) = partition_name(path)? {
                     if let Err(e) = dataset
-                        .register_partition(db, &name, payload.self_link)
+                        .register_partition(db, &name, payload.self_link, size)
                         .await
                     {
                         log::error!(

@@ -143,6 +143,7 @@ impl From<&Row> for Partition {
             id: row.get("partition_id"),
             name: row.get("partition_name"),
             url: row.get("partition_url"),
+            size: row.get("partition_size"),
             dataset_id: row.get("dataset_id"),
             created_at: row.get("created_at"),
             updated_at: row.get("updated_at"),
@@ -156,6 +157,7 @@ impl From<Row> for Partition {
             id: row.get("partition_id"),
             name: row.get("partition_name"),
             url: row.get("partition_url"),
+            size: row.get("partition_size"),
             dataset_id: row.get("dataset_id"),
             created_at: row.get("created_at"),
             updated_at: row.get("updated_at"),
@@ -271,6 +273,7 @@ impl DataService for Db {
         dataset: &Dataset,
         partition_name: &str,
         partition_url: &str,
+        partition_size: i64,
     ) -> Result<Partition, Error> {
         if partition_name == PARTITION_LATEST {
             log::error!(
@@ -290,7 +293,12 @@ impl DataService for Db {
             .await?
             .query_one(
                 sql::REGISTER_PARTITION,
-                &[&partition_name, &partition_url, &dataset.id],
+                &[
+                    &partition_name,
+                    &partition_url,
+                    &partition_size,
+                    &dataset.id,
+                ],
             )
             .await?
             .into())

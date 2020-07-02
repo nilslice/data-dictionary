@@ -30,6 +30,7 @@ pub trait DataService {
         dataset: &Dataset,
         partition_name: &str,
         partition_url: &str,
+        partition_size: i64,
     ) -> Result<Partition, Error>;
 
     async fn delete_partition(

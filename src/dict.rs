@@ -276,13 +276,14 @@ impl Dataset {
         svc: &mut impl DataService,
         name: impl AsRef<str>,
         url: impl AsRef<str>,
+        size: i64,
     ) -> Result<Partition, Error> {
         info!(
             "registering partition '{}' for dataset: {}",
             name.as_ref(),
             &self.name
         );
-        svc.register_partition(&self, name.as_ref(), url.as_ref())
+        svc.register_partition(&self, name.as_ref(), url.as_ref(), size)
             .await
     }
 
@@ -349,6 +350,8 @@ pub struct Partition {
     pub name: String,
     #[serde(rename(serialize = "partition_url"))]
     pub url: String,
+    #[serde(rename(serialize = "partition_size"))]
+    pub size: i64,
     pub dataset_id: i32,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,

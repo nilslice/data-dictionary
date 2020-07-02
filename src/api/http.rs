@@ -1,3 +1,6 @@
+use std::sync::Arc;
+
+use crate::bucket::BucketManager;
 use crate::db::Db;
 use crate::dict::{Dataset, DatasetConfig, Manager};
 use crate::error::Error as DDError;
@@ -15,6 +18,7 @@ use uuid::Uuid;
 #[derive(Clone)]
 pub struct Server {
     pub db: Db,
+    pub bucket_manager: Arc<BucketManager>,
 }
 
 #[derive(Deserialize)]
@@ -221,6 +225,13 @@ pub async fn register_dataset(
 
     let mut resp = HttpResponse::build(StatusCode::OK);
 
+    // verify that dataset does not already exist
+    if let Ok(_) = Dataset::find(&mut srv.db.clone(), &config.name).await {
+        let msg = format!("a dataset with name '{}' already exists", &config.name);
+        log::error!("failed to register dataset, {}", &msg);
+        return json_message(resp, StatusCode::CONFLICT, msg).await;
+    }
+
     let mut api_key = Uuid::default();
     if let Some(value) = req.headers().get("Authorization") {
         if let Ok(bearer) = value.to_str() {
@@ -236,6 +247,17 @@ pub async fn register_dataset(
 
     let manager = Manager::find(&mut srv.db.clone(), api_key).await;
     if let Ok(manager) = manager {
+        // upload the dataset configuration to GCS
+        if let Err(_) = &srv.bucket_manager.register_dataset(&config).await {
+            return json_message(
+                resp,
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "failed to upload dataset configuration",
+            )
+            .await;
+        }
+
+        // if successful, store the dataset config in the database
         match manager
             .register_dataset(
                 &mut srv.db.clone(),

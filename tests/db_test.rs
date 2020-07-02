@@ -76,6 +76,7 @@ async fn test_dataset() {
                     Compression::Uncompressed,
                     Classification::Sensitive,
                 )),
+                testutil::rand_size(),
             )
             .await;
         assert!(partition_result.is_ok());
@@ -103,7 +104,12 @@ async fn test_dataset() {
         Classification::Public,
     ));
     let partition_result = dataset
-        .register_partition(&mut test_db.db, partition_name, partition_url)
+        .register_partition(
+            &mut test_db.db,
+            partition_name,
+            partition_url,
+            testutil::rand_size(),
+        )
         .await;
     assert!(partition_result.is_ok());
     let partition = partition_result.unwrap();
@@ -124,6 +130,7 @@ async fn test_dataset() {
                 Compression::Zip,
                 Classification::Private,
             )),
+            testutil::rand_size(),
         )
         .await
         .unwrap();
@@ -213,13 +220,20 @@ async fn test_module_integration() {
         Classification::Private,
     ));
     // add a partition to the dataset
+    let partition_size = testutil::rand_size();
     let partition = dataset
-        .register_partition(&mut test_db.db, &partition_name, &partition_url)
+        .register_partition(
+            &mut test_db.db,
+            &partition_name,
+            &partition_url,
+            partition_size,
+        )
         .await
         .unwrap();
     assert_ne!(partition.id, 0);
     let parition_id = partition.id;
     assert_eq!(partition.name, partition_name);
+    assert_eq!(partition.size, partition_size);
 
     // find the partition, expect to fail with no matching partition name
     let partition_result = dataset
@@ -286,7 +300,12 @@ async fn test_module_integration() {
         Classification::Confidential,
     ));
     let added_partition = added_dataset
-        .register_partition(&mut test_db.db, added_partition_name, added_partition_url)
+        .register_partition(
+            &mut test_db.db,
+            added_partition_name,
+            added_partition_url,
+            testutil::rand_size(),
+        )
         .await
         .unwrap();
     assert_ne!(added_partition.id, 0);
@@ -314,6 +333,7 @@ async fn test_module_integration() {
                 Compression::Tar,
                 Classification::Public,
             )),
+            testutil::rand_size(),
         )
         .await
         .unwrap();
@@ -345,6 +365,7 @@ async fn test_module_integration() {
                 Compression::Uncompressed,
                 Classification::Public,
             )),
+            testutil::rand_size(),
         )
         .await;
     assert!(bad_partition_result.is_err());
@@ -388,6 +409,7 @@ async fn test_range_query() {
                     Compression::Tar,
                     Classification::Public,
                 )),
+                testutil::rand_size(),
             )
             .await
             .unwrap();

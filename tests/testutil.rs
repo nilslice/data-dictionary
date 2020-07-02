@@ -111,6 +111,12 @@ fn rand_schema_name() -> String {
     rand(20, CHARACTER_SET.replace("0123456789", ""))
 }
 
+pub fn rand_size() -> i64 {
+    rand(7, "123456789".into())
+        .parse()
+        .expect("failed to parse u32 from rand string")
+}
+
 pub enum Rand {
     Email,
     Password,

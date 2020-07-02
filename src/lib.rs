@@ -1,7 +1,9 @@
 pub mod api;
+pub mod bucket;
 pub mod db;
 pub mod dict;
 pub mod error;
+pub mod gcp_client;
 pub mod pubsub;
 pub mod pubsub_rt;
 pub mod service;

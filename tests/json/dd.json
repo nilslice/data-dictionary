@@ -1,6 +1,6 @@
 {
-    "name": "example_dataset",
-    "classification": "private",
+    "name": "sensitive_example_dataset",
+    "classification": "sensitive",
     "compression": "zip",
     "format": "protobuf",
     "description": "The example_dataset is used to test datadictionary features.",

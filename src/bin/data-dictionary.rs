@@ -1,7 +1,9 @@
 use std::process;
+use std::sync::Arc;
 use std::thread;
 
 use data_dictionary::api;
+use data_dictionary::bucket::BucketManager;
 use data_dictionary::db::{Db, PoolConfig};
 use data_dictionary::error::Error;
 use data_dictionary::pubsub_rt;
@@ -35,9 +37,13 @@ async fn main() -> Result<(), Error> {
     });
 
     let app = HttpServer::new(move || {
+        let bucket_manager = BucketManager::from_env(Default::default());
         let apidb = db.clone();
         App::new()
-            .data(api::Server { db: apidb })
+            .data(api::Server {
+                db: apidb,
+                bucket_manager: Arc::new(bucket_manager),
+            })
             .route("/manager/register", web::post().to(api::register_manager))
             .route("/datasets", web::get().to(api::list_datasets))
             .route(

@@ -21,11 +21,11 @@ pub const DELETE_DATASET: &str = r#"
 "#;
 
 pub const REGISTER_PARTITION: &str = r#"
-    INSERT INTO partitions (partition_name, partition_url, dataset_id)
-    VALUES ($1, $2, $3)
+    INSERT INTO partitions (partition_name, partition_url, partition_size, dataset_id)
+    VALUES ($1, $2, $3, $4)
     ON CONFLICT (partition_name, dataset_id) DO UPDATE
-    SET partition_url=excluded.partition_url
-    RETURNING partition_id, partition_name, partition_url, dataset_id, created_at, updated_at
+    SET partition_url=excluded.partition_url, partition_size=excluded.partition_size
+    RETURNING partition_id, partition_name, partition_url, partition_size, dataset_id, created_at, updated_at
 "#;
 
 pub const DELETE_PARTITION: &str = r#"
@@ -33,21 +33,27 @@ pub const DELETE_PARTITION: &str = r#"
 "#;
 
 pub const FIND_PARTITION: &str = r#"
-    SELECT partition_id, partition_name, partition_url, dataset_id, created_at, updated_at
+    SELECT partition_id, partition_name, partition_url, partition_size, dataset_id, created_at, updated_at
     FROM partitions 
     WHERE partition_name = $1 AND dataset_id = $2
 "#;
 
 pub const FIND_PARTITION_LATEST: &str = r#"
-    SELECT partition_id, partition_name, partition_url, dataset_id, created_at, updated_at
+    SELECT partition_id, partition_name, partition_url, partition_size, dataset_id, created_at, updated_at
     FROM partitions 
     WHERE dataset_id = $1
     ORDER BY created_at DESC
     LIMIT 1
 "#;
 
+pub const SQL_ALL_PARTITIONS: &str = r#"
+    SELECT partition_id, partition_name, partition_url, partition_size, dataset_id, created_at, updated_at
+    FROM partitions
+    WHERE dataset_id = $1
+"#;
+
 pub const LIST_PARTITIONS: &str = r#"
-    SELECT partition_id, partition_name, partition_url, dataset_id, created_at, updated_at
+    SELECT partition_id, partition_name, partition_url, partition_size, dataset_id, created_at, updated_at
     FROM partitions 
     WHERE dataset_id = $1
 "#;
