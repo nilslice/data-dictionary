@@ -46,7 +46,7 @@ pub async fn new_test_db() -> Result<TestDb, Error> {
     Ok(test_db)
 }
 
-pub async fn drop_test_db(conn: &mut TestDb) -> Result<(), Error> {
+pub async fn drop_test_db(conn: TestDb) -> Result<(), Error> {
     let _ = conn
         .db
         .client

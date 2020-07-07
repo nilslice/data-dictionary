@@ -2,7 +2,7 @@ use data_dictionary::{db::Db, dict::DatasetConfig, dict::Manager, error::Error};
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {
-    let email = std::env::var("EMAIL").unwrap_or("smanuel@recurly.com".into());
+    let email = std::env::var("EMAIL").unwrap_or("nilslice@example.com".into());
     let password = std::env::var("PASSWORD").unwrap_or("lol1234".into());
     let num_datasets: usize = std::env::var("NUM_DATASETS")
         .unwrap_or("50".into())

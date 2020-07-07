@@ -260,9 +260,12 @@ impl Dataset {
     }
 
     /// Retrieves all datasets from the database.
-    pub async fn list(svc: &mut impl DataService) -> Result<Vec<Dataset>, Error> {
+    pub async fn list(
+        svc: &mut impl DataService,
+        params: Option<RangeParams>,
+    ) -> Result<Vec<Dataset>, Error> {
         info!("listing all datasets");
-        svc.list_datasets().await
+        svc.list_datasets(params).await
     }
 
     pub async fn delete(self, svc: &mut impl DataService) -> Result<(), Error> {
@@ -314,29 +317,28 @@ impl Dataset {
         svc.find_partition(&self, name.as_ref()).await
     }
 
-    /// Retrieves a set of partitions based on the range paramaters provided, optionally using any
-    /// combination of start/end times, result count, and offset values.
-    pub async fn partition_range(
-        &self,
-        svc: &mut impl DataService,
-        params: &RangeParams,
-    ) -> Result<Vec<Partition>, Error> {
-        info!(
-            "finding partitions for specified range {:?} to {:?}, count: {:?}, offset: {:?}",
-            params.start, params.end, params.count, params.offset
-        );
-        svc.range_partitions(self, params).await
-    }
-
     /// Retrieves the "latest" partition for the current dataset.
     pub async fn latest_partition(&self, svc: &mut impl DataService) -> Result<Partition, Error> {
         self.partition(svc, PARTITION_LATEST).await
     }
 
-    /// Retrieves all partitions for the current dataset.
-    pub async fn partitions(&self, svc: &mut impl DataService) -> Result<Vec<Partition>, Error> {
-        info!("listing all partitions for dataset: {}", &self.name);
-        svc.list_partitions(&self).await
+    /// Retrieves a set of partitions based on the range paramaters provided, optionally using any
+    /// combination of start/end times, result count, and offset values.
+    pub async fn partitions(
+        &self,
+        svc: &mut impl DataService,
+        params: Option<RangeParams>,
+    ) -> Result<Vec<Partition>, Error> {
+        if let Some(params) = params {
+            info!(
+                "listing partitions for specified range {:?} to {:?}, count: {:?}, offset: {:?} in dataset: {}",
+                params.start, params.end, params.count, params.offset, self.id,
+            );
+        } else {
+            info!("listing all partitions for dataset: {}", self.id);
+        }
+
+        svc.list_partitions(&self, params).await
     }
 }
 
@@ -358,7 +360,7 @@ pub struct Partition {
 }
 
 /// Params specify how a Dataset's Partition results should be returned.
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone, Copy)]
 pub struct RangeParams {
     pub start: Option<DateTime<Utc>>,
     pub end: Option<DateTime<Utc>>,

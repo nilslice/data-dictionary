@@ -1,6 +1,6 @@
 use std::env;
 
-use crate::db::range_query;
+use crate::db::range_query::{self, Target};
 use crate::db::sql;
 use crate::dict::{
     Classification, Compression, Dataset, DatasetSchema, Format, Manager, Partition, RangeParams,
@@ -246,12 +246,21 @@ impl DataService for Db {
             .into())
     }
 
-    async fn list_datasets(&mut self) -> Result<Vec<Dataset>, Error> {
+    async fn list_datasets(&mut self, params: Option<RangeParams>) -> Result<Vec<Dataset>, Error> {
+        let (query, boxed_bindvars) = range_query::create(Target::Dataset, params);
+        let bindvars = boxed_bindvars
+            .iter()
+            .map(|v| v.as_ref())
+            .collect::<Vec<&(dyn ToSql + Sync + Send)>>();
+
+        let bindvars: Vec<&(dyn ToSql + Sync)> =
+            bindvars.iter().map(|v| *un_send(*v).as_ref()).collect();
+
         Ok(self
             .client
             .get()
             .await?
-            .query(sql::LIST_DATASETS, &[])
+            .query(&query as &str, &bindvars[..])
             .await?
             .iter()
             .map(Dataset::from)
@@ -349,17 +358,17 @@ impl DataService for Db {
         }
     }
 
-    async fn range_partitions(
+    async fn list_partitions(
         &mut self,
         dataset: &Dataset,
-        params: &RangeParams,
+        params: Option<RangeParams>,
     ) -> Result<Vec<Partition>, Error> {
-        let (query, boxed_bindvars) = range_query::partitions(params);
+        let (query, boxed_bindvars) = range_query::create(Target::Partition, params);
         let mut bindvars = boxed_bindvars
             .iter()
             .map(|v| v.as_ref())
             .collect::<Vec<&(dyn ToSql + Sync + Send)>>();
-        // prepend the dataset id to the bind vars, since it is used for all range queries
+        // prepend the dataset id to the bind vars, since it is used for all partition range queries
         bindvars.insert(0, &dataset.id);
 
         let bindvars: Vec<&(dyn ToSql + Sync)> =
@@ -370,18 +379,6 @@ impl DataService for Db {
             .get()
             .await?
             .query(&query as &str, &bindvars[..])
-            .await?
-            .iter()
-            .map(Partition::from)
-            .collect())
-    }
-
-    async fn list_partitions(&mut self, dataset: &Dataset) -> Result<Vec<Partition>, Error> {
-        Ok(self
-            .client
-            .get()
-            .await?
-            .query(sql::LIST_PARTITIONS, &[&dataset.id])
             .await?
             .iter()
             .map(Partition::from)

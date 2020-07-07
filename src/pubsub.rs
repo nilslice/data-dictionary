@@ -220,6 +220,8 @@ pub enum PayloadFormat {
 }
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
+/// Documented on Google Cloud Platform here: 
+/// https://cloud.google.com/storage/docs/json_api/v1/objects#resource-representations
 pub struct Payload {
     pub kind: String,
     pub id: String,

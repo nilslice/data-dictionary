@@ -13,7 +13,6 @@ pub const FIND_DATASET: &str = r#"
 pub const LIST_DATASETS: &str = r#"
     SELECT dataset_id, dataset_name, manager_id, dataset_compression, dataset_format, dataset_classification, dataset_schema, dataset_desc, created_at, updated_at
     FROM datasets
-    ORDER BY created_at ASC
 "#;
 
 pub const DELETE_DATASET: &str = r#"
@@ -44,12 +43,6 @@ pub const FIND_PARTITION_LATEST: &str = r#"
     WHERE dataset_id = $1
     ORDER BY created_at DESC
     LIMIT 1
-"#;
-
-pub const SQL_ALL_PARTITIONS: &str = r#"
-    SELECT partition_id, partition_name, partition_url, partition_size, dataset_id, created_at, updated_at
-    FROM partitions
-    WHERE dataset_id = $1
 "#;
 
 pub const LIST_PARTITIONS: &str = r#"

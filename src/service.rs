@@ -21,7 +21,7 @@ pub trait DataService {
 
     async fn find_dataset(&mut self, name: &str) -> Result<Dataset, Error>;
 
-    async fn list_datasets(&mut self) -> Result<Vec<Dataset>, Error>;
+    async fn list_datasets(&mut self, params: Option<RangeParams>) -> Result<Vec<Dataset>, Error>;
 
     async fn delete_dataset(&mut self, dataset: &Dataset) -> Result<(), Error>;
 
@@ -45,13 +45,11 @@ pub trait DataService {
         partition_name: &str,
     ) -> Result<Partition, Error>;
 
-    async fn range_partitions(
+    async fn list_partitions(
         &mut self,
         dataset: &Dataset,
-        params: &RangeParams,
+        params: Option<RangeParams>,
     ) -> Result<Vec<Partition>, Error>;
-
-    async fn list_partitions(&mut self, dataset: &Dataset) -> Result<Vec<Partition>, Error>;
 
     async fn register_manager(&mut self, email: &str, password: &str) -> Result<Manager, Error>;
 

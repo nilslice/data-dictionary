@@ -2,14 +2,14 @@ use std::sync::Arc;
 
 use crate::bucket::BucketManager;
 use crate::db::Db;
-use crate::dict::{Dataset, DatasetConfig, Manager};
+use crate::dict::{Dataset, DatasetConfig, Manager, RangeParams};
 use crate::error::Error as DDError;
 
 use actix_http::Response;
 use actix_web::{
     dev::HttpResponseBuilder,
     http::StatusCode,
-    web::{Data, HttpRequest, Json, Path},
+    web::{Data, HttpRequest, Json, Path, Query},
     Error, HttpResponse,
 };
 use serde::{Deserialize, Serialize};
@@ -304,10 +304,35 @@ pub async fn register_dataset(
     }
 }
 
-pub async fn list_datasets(srv: Data<Server>) -> Result<HttpResponse, Error> {
+#[derive(Deserialize)]
+pub struct Pagination {
+    count: Option<i32>,
+    offset: Option<i32>,
+}
+
+impl From<Pagination> for RangeParams {
+    fn from(p: Pagination) -> Self {
+        Self {
+            start: None,
+            end: None,
+            count: p.count,
+            offset: p.offset,
+        }
+    }
+}
+
+pub async fn list_datasets(
+    srv: Data<Server>,
+    params: Query<Pagination>,
+) -> Result<HttpResponse, Error> {
     let mut resp = HttpResponse::build(StatusCode::OK);
 
-    let datasets = Dataset::list(&mut srv.db.clone()).await;
+    let mut range_params: Option<RangeParams> = None;
+    if params.count.is_some() || params.offset.is_some() {
+        range_params = Some(params.0.into());
+    }
+
+    let datasets = Dataset::list(&mut srv.db.clone(), range_params).await;
     if let Ok(datasets) = datasets {
         resp.json(datasets).await
     } else {

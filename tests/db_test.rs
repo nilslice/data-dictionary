@@ -12,7 +12,7 @@ use uuid::Uuid;
 async fn try_clear_db() {
     let mut test_db = testutil::new_test_db().await.unwrap();
     testutil::clear_db(&mut test_db).await.unwrap();
-    testutil::drop_test_db(&mut test_db).await.unwrap();
+    testutil::drop_test_db(test_db).await.unwrap();
 }
 
 #[tokio::test]
@@ -82,7 +82,7 @@ async fn test_dataset() {
         assert!(partition_result.is_ok());
     }
 
-    let all_datasets = test_db.db.list_datasets().await.unwrap();
+    let all_datasets = test_db.db.list_datasets(None).await.unwrap();
     assert_eq!(all_datasets.len(), 100 as usize);
 
     // delete the last dataset added and verify that it no longer exists
@@ -154,7 +154,7 @@ async fn test_dataset() {
         prev_before_new_added_latest.created_at
     );
 
-    testutil::drop_test_db(&mut test_db).await.unwrap();
+    testutil::drop_test_db(test_db).await.unwrap();
 }
 
 #[tokio::test]
@@ -282,7 +282,7 @@ async fn test_module_integration() {
     assert!(dataset_ids.contains(&added_dataset.id));
 
     // list all datasets and compare results to known added values
-    let all_datasets = Dataset::list(&mut test_db.db).await.unwrap();
+    let all_datasets = Dataset::list(&mut test_db.db, None).await.unwrap();
     let mut known_dataset_ids = manager_datasets.iter().map(|d| d.id).collect::<Vec<i32>>();
     known_dataset_ids.sort();
     let mut all_dataset_ids = all_datasets.iter().map(|d| d.id).collect::<Vec<i32>>();
@@ -346,7 +346,10 @@ async fn test_module_integration() {
     known_added_partitions.push(added_dataset_add_partition.id);
 
     // list all partitions for the added dataset, compare with known partition values within it
-    let all_added_partitions = added_dataset.partitions(&mut test_db.db).await.unwrap();
+    let all_added_partitions = added_dataset
+        .partitions(&mut test_db.db, None)
+        .await
+        .unwrap();
     let mut all_added_partition_ids = all_added_partitions
         .iter()
         .map(|p| p.id)
@@ -370,11 +373,11 @@ async fn test_module_integration() {
         .await;
     assert!(bad_partition_result.is_err());
 
-    testutil::drop_test_db(&mut test_db).await.unwrap();
+    testutil::drop_test_db(test_db).await.unwrap();
 }
 
 #[tokio::test]
-async fn test_range_query() {
+async fn test_range_query_partitions() {
     let mut test_db = testutil::new_test_db().await.unwrap();
 
     let manager = Manager::register(
@@ -417,7 +420,7 @@ async fn test_range_query() {
         std::thread::sleep(std::time::Duration::from_millis(100));
     }
 
-    let partitions_all = dataset.partitions(&mut test_db.db).await.unwrap();
+    let partitions_all = dataset.partitions(&mut test_db.db, None).await.unwrap();
     assert_eq!(partitions_all.len(), partition_count);
     // test that range ordering is correct, sorted by created_at ASC
     // TODO: reimplement this test once `is_sorted_by_key` is stablized
@@ -432,7 +435,7 @@ async fn test_range_query() {
     // test no parameters
     let mut params = Default::default();
     let partitions = dataset
-        .partition_range(&mut test_db.db, &params)
+        .partitions(&mut test_db.db, Some(params))
         .await
         .unwrap();
     assert_eq!(partitions.len(), partition_count);
@@ -443,7 +446,7 @@ async fn test_range_query() {
     params = Default::default();
     params.start = Some(midpoint);
     let after_midpoint = dataset
-        .partition_range(&mut test_db.db, &params)
+        .partitions(&mut test_db.db, Some(params))
         .await
         .unwrap();
     for p in after_midpoint.iter() {
@@ -454,7 +457,7 @@ async fn test_range_query() {
     params = Default::default();
     params.end = Some(midpoint);
     let before_midpoint = dataset
-        .partition_range(&mut test_db.db, &params)
+        .partitions(&mut test_db.db, Some(params))
         .await
         .unwrap();
     for p in before_midpoint.iter() {
@@ -466,7 +469,7 @@ async fn test_range_query() {
     for test_count in 1..partition_count {
         params.count = Some(test_count as i32);
         let specific_count = dataset
-            .partition_range(&mut test_db.db, &params)
+            .partitions(&mut test_db.db, Some(params))
             .await
             .unwrap();
         assert_eq!(specific_count.len(), test_count as usize);
@@ -475,7 +478,7 @@ async fn test_range_query() {
     // test that only the available amount of partitions is returned, even if a higher count is used
     params.count = Some((partition_count + 1) as i32);
     let actual_count = dataset
-        .partition_range(&mut test_db.db, &params)
+        .partitions(&mut test_db.db, Some(params))
         .await
         .unwrap();
     assert_eq!(actual_count.len(), partition_count as usize);
@@ -484,7 +487,7 @@ async fn test_range_query() {
     params = Default::default();
     params.offset = Some(20);
     let actual_count = dataset
-        .partition_range(&mut test_db.db, &params)
+        .partitions(&mut test_db.db, Some(params))
         .await
         .unwrap();
     assert_eq!(
@@ -495,7 +498,7 @@ async fn test_range_query() {
     // test an offset higher than the available number of records
     params.offset = Some((partition_count * 2) as i32);
     let actual_count = dataset
-        .partition_range(&mut test_db.db, &params)
+        .partitions(&mut test_db.db, Some(params))
         .await
         .unwrap();
     assert_eq!(actual_count.len(), 0);
@@ -506,7 +509,7 @@ async fn test_range_query() {
     // use an end date somewhere near the tail of the full set of partitions
     params.end = Some(partitions_all.get(partition_count - 3).unwrap().created_at);
     let actual_count = dataset
-        .partition_range(&mut test_db.db, &params)
+        .partitions(&mut test_db.db, Some(params))
         .await
         .unwrap();
     let end = params.end.unwrap();
@@ -519,7 +522,7 @@ async fn test_range_query() {
     // test start + end + count parameters
     params.count = Some(3);
     let actual_count_limit = dataset
-        .partition_range(&mut test_db.db, &params)
+        .partitions(&mut test_db.db, Some(params))
         .await
         .unwrap();
     assert_eq!(actual_count_limit.len(), 3 as usize);
@@ -527,7 +530,7 @@ async fn test_range_query() {
     // test start + end + count + offset parameters
     params.offset = Some(1);
     let actual_count_limit_offset = dataset
-        .partition_range(&mut test_db.db, &params)
+        .partitions(&mut test_db.db, Some(params))
         .await
         .unwrap();
     assert!(actual_count_limit
@@ -539,7 +542,7 @@ async fn test_range_query() {
     // test start + end + offset
     params.count = None;
     let actual_count_offset = dataset
-        .partition_range(&mut test_db.db, &params)
+        .partitions(&mut test_db.db, Some(params))
         .await
         .unwrap();
     assert!(actual_count_limit
@@ -548,7 +551,55 @@ async fn test_range_query() {
         .created_at
         .lt(&actual_count_offset.get(0).unwrap().created_at));
 
-    testutil::drop_test_db(&mut test_db).await.unwrap();
+    testutil::drop_test_db(test_db).await.unwrap();
+}
+
+#[tokio::test]
+async fn test_range_query_datasets() {
+    let mut test_db = testutil::new_test_db().await.unwrap();
+    let manager = testutil::create_manager(&mut test_db).await.unwrap();
+    let dataset_count = 30;
+
+    // register datasets to use for range testing
+    for _ in 0..dataset_count {
+        manager
+            .register_dataset(
+                &mut test_db.db,
+                testutil::get_rand(String(20)),
+                Compression::Uncompressed,
+                Format::Json,
+                Classification::Confidential,
+                testutil::rand_schema(),
+                testutil::get_rand(String(100)),
+            )
+            .await
+            .unwrap();
+    }
+
+    // test that all are returned when the params are None and when all param fields are None
+    let all_datasets = Dataset::list(&mut test_db.db, None).await.unwrap();
+    assert_eq!(all_datasets.len(), dataset_count);
+    let mut params = Default::default();
+    let all_datasets = Dataset::list(&mut test_db.db, Some(params)).await.unwrap();
+    assert_eq!(all_datasets.len(), dataset_count);
+
+    // test that the correct number of datasets are returned when there is a count param set
+    let count = 5;
+    params.count = Some(count);
+    let limited_datasets = Dataset::list(&mut test_db.db, Some(params)).await.unwrap();
+    assert_eq!(limited_datasets.len(), count as usize);
+
+    // test count + offset
+    params.offset = Some(5);
+    let limited_offset_datasets = Dataset::list(&mut test_db.db, Some(params)).await.unwrap();
+    for (i, offset_dataset) in limited_offset_datasets.iter().enumerate() {
+        assert!(offset_dataset.id > limited_datasets.get(i).unwrap().id);
+        assert!(offset_dataset
+            .created_at
+            .gt(&limited_datasets.get(i).unwrap().created_at))
+    }
+
+    testutil::drop_test_db(test_db).await.unwrap();
 }
 
 #[tokio::test]
@@ -599,7 +650,7 @@ async fn test_manager() {
     let invalid = test_db.db.auth_manager(&email, "invalidPassword").await;
     assert!(invalid.is_err());
 
-    testutil::drop_test_db(&mut test_db).await.unwrap();
+    testutil::drop_test_db(test_db).await.unwrap();
 }
 
 use serde_json;
@@ -644,5 +695,5 @@ async fn test_dataset_from_config() {
     assert_eq!(found.id, dataset.id);
     assert_eq!(found.schema, dataset.schema);
 
-    testutil::drop_test_db(&mut test_db).await.unwrap();
+    testutil::drop_test_db(test_db).await.unwrap();
 }

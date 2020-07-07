@@ -4,24 +4,32 @@ version = "0.1.0"
 authors = ["Steve Manuel <nilslice@gmail.com>"]
 edition = "2018"
 
+[[bin]]
+name = "gendataset"
+path = "src/bin/gendataset.rs"
+
+[[bin]]
+name = "data-dictionary"
+
 [dependencies]
-tokio = { version = "0.2.21", features = ["macros", "sync", "rt-util"] }
-tokio-postgres = { version = "0.5.4", features = ["with-chrono-0_4", "with-uuid-0_8", "with-serde_json-1"] }
-postgres-types = { version = "0.1.1", features = ["derive"] }
 uuid = { version = "0.8.1", features = ["v4", "serde"] }
 chrono = { version = "0.4.11", features = ["serde"] }
-refinery = { version = "0.3.0", features = ["tokio-postgres"] }
 log = "0.4.8"
 env_logger = "0.7.1"
 rand = "0.7.3"
-argon2rs = "0.2.5"
 serde_json = "1.0.55"
 serde = { version = "1.0.112", features = ["derive"] }
 reqwest =  { version = "0.10.6", features = ["json"] }
+tokio = { version = "0.2.21", features = ["macros", "sync", "rt-util"] }
+tokio-postgres = { version = "0.5.4", features = ["with-chrono-0_4", "with-uuid-0_8", "with-serde_json-1"] }
+postgres-types = { version = "0.1.1", features = ["derive"] }
+refinery = { version = "0.3.0", features = ["tokio-postgres"] }
+argon2rs = "0.2.5"
 gouth = "0.1.1"
 async-trait = "0.1.36"
 base64 = "0.12.2"
 actix-web = "2.0"
+actix-cors = "0.2.0"
 actix-rt = "1.0"
 actix-http = "1.0"
 bb8-postgres = "0.4.0"
