@@ -8,6 +8,7 @@ use data_dictionary::db::{Db, PoolConfig};
 use data_dictionary::error::Error;
 use data_dictionary::pubsub_rt;
 
+use actix_cors::Cors;
 use actix_web::{web, App, HttpServer};
 use tokio::runtime::Runtime;
 
@@ -40,22 +41,32 @@ async fn main() -> Result<(), Error> {
         let bucket_manager = BucketManager::from_env(Default::default());
         let apidb = db.clone();
         App::new()
+            .wrap(Cors::new().send_wildcard().finish())
             .data(api::Server {
                 db: apidb,
                 bucket_manager: Arc::new(bucket_manager),
             })
-            .route("/manager/register", web::post().to(api::register_manager))
-            .route("/datasets", web::get().to(api::list_datasets))
             .route(
-                "/dataset/{dataset_name}/latest",
+                "/api/manager/register",
+                web::post().to(api::register_manager),
+            )
+            .route("/api/datasets", web::get().to(api::list_datasets))
+            .route(
+                "/api/dataset/{dataset_name}/latest",
                 web::get().to(api::latest_partition),
             )
             .route(
-                "/dataset/{dataset_name}/{partition_name:.*}",
+                "/api/dataset/{dataset_name}/{partition_name:.*}",
                 web::get().to(api::find_partition),
             )
-            .route("/dataset/{dataset_name}", web::get().to(api::find_dataset))
-            .route("/dataset/register", web::post().to(api::register_dataset))
+            .route(
+                "/api/dataset/{dataset_name}",
+                web::get().to(api::find_dataset),
+            )
+            .route(
+                "/api/dataset/register",
+                web::post().to(api::register_dataset),
+            )
     });
     app.bind("127.0.0.1:8080")?.run().await?;
     Ok(())
