@@ -52,6 +52,9 @@ async fn main() -> Result<(), Error> {
             datasets.len(),
             std::time::Instant::now().duration_since(start)
         );
+    } else {
+        println!("Failed to authenticate.");
+        std::process::exit(1);
     }
 
     Ok(())
