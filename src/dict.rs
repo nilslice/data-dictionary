@@ -264,7 +264,14 @@ impl Dataset {
         svc: &mut impl DataService,
         params: Option<RangeParams>,
     ) -> Result<Vec<Dataset>, Error> {
-        info!("listing all datasets");
+        if let Some(params) = params {
+            info!(
+                "listing datasets for specified range start: {:?} to end: {:?}, count: {:?}, offset: {:?}",
+                params.start, params.end, params.count, params.offset,
+            );
+        } else {
+            info!("listing all datasets");
+        }
         svc.list_datasets(params).await
     }
 
@@ -331,7 +338,7 @@ impl Dataset {
     ) -> Result<Vec<Partition>, Error> {
         if let Some(params) = params {
             info!(
-                "listing partitions for specified range {:?} to {:?}, count: {:?}, offset: {:?} in dataset: {}",
+                "listing partitions for specified range start: {:?} to end: {:?}, count: {:?}, offset: {:?} in dataset: {}",
                 params.start, params.end, params.count, params.offset, self.id,
             );
         } else {

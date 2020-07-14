@@ -4,13 +4,6 @@ version = "0.1.0"
 authors = ["Steve Manuel <nilslice@gmail.com>"]
 edition = "2018"
 
-[[bin]]
-name = "gendataset"
-path = "src/bin/gendataset.rs"
-
-[[bin]]
-name = "data-dictionary"
-
 [dependencies]
 uuid = { version = "0.8.1", features = ["v4", "serde"] }
 chrono = { version = "0.4.11", features = ["serde"] }
