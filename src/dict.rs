@@ -259,6 +259,15 @@ impl Dataset {
         svc.find_dataset(name.as_ref()).await
     }
 
+    /// Searches for a Dataset based on the term provided.
+    pub async fn search(
+        svc: &mut impl DataService,
+        term: impl AsRef<str>,
+    ) -> Result<Vec<Dataset>, Error> {
+        info!("searching datasets for: {}", term.as_ref());
+        svc.search_datasets(term.as_ref()).await
+    }
+
     /// Retrieves all datasets from the database.
     pub async fn list(
         svc: &mut impl DataService,

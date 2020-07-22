@@ -21,6 +21,8 @@ pub trait DataService {
 
     async fn find_dataset(&mut self, name: &str) -> Result<Dataset, Error>;
 
+    async fn search_datasets(&mut self, term: &str) -> Result<Vec<Dataset>, Error>;
+
     async fn list_datasets(&mut self, params: Option<RangeParams>) -> Result<Vec<Dataset>, Error>;
 
     async fn delete_dataset(&mut self, dataset: &Dataset) -> Result<(), Error>;

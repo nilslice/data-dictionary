@@ -380,6 +380,29 @@ pub async fn find_dataset(
     }
 }
 
+#[derive(Deserialize)]
+pub struct SearchDatasets {
+    term: String,
+}
+
+pub async fn search_datasets(
+    srv: Data<Server>,
+    params: Query<SearchDatasets>,
+) -> Result<HttpResponse, Error> {
+    let mut resp = HttpResponse::build(StatusCode::OK);
+
+    let matches = Dataset::search(&mut srv.db.clone(), &params.term).await;
+    if let Ok(datasets) = matches {
+        resp.json(datasets).await
+    } else {
+        let msg = "dataset search failure";
+        let err = matches.err().expect("no dataset search error specified");
+        log::error!("{}: {}", msg, err);
+
+        json_message(resp, StatusCode::INTERNAL_SERVER_ERROR, msg).await
+    }
+}
+
 fn json_message(
     mut builder: HttpResponseBuilder,
     status: StatusCode,

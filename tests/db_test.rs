@@ -653,8 +653,6 @@ async fn test_manager() {
     testutil::drop_test_db(test_db).await.unwrap();
 }
 
-use serde_json;
-
 #[tokio::test]
 async fn test_dataset_from_config() {
     let mut test_db = testutil::new_test_db().await.unwrap();
@@ -695,5 +693,33 @@ async fn test_dataset_from_config() {
     assert_eq!(found.id, dataset.id);
     assert_eq!(found.schema, dataset.schema);
 
+    testutil::drop_test_db(test_db).await.unwrap();
+}
+
+#[tokio::test]
+async fn test_dataset_search() {
+    let mut test_db = testutil::new_test_db().await.unwrap();
+    let manager = testutil::create_manager(&mut test_db).await.unwrap();
+    let known_names = &["dataset_1_teamA", "dataset_2_teamA", "dataset_1_teamB"];
+    for name in known_names {
+        manager
+            .register_dataset(
+                &mut test_db.db,
+                name,
+                Compression::Uncompressed,
+                Format::PlainText,
+                Classification::Public,
+                testutil::rand_schema(),
+                testutil::get_rand(String(50)),
+            )
+            .await
+            .unwrap();
+    }
+
+    let tests = &[("team", 3), ("teamA", 2), ("teamB", 1), ("no_results", 0)];
+    for t in tests {
+        let matches = Dataset::search(&mut test_db.db, t.0).await.unwrap();
+        assert_eq!(matches.len(), t.1);
+    }
     testutil::drop_test_db(test_db).await.unwrap();
 }

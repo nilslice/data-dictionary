@@ -10,6 +10,12 @@ pub const FIND_DATASET: &str = r#"
     WHERE dataset_name = $1
 "#;
 
+pub const SEARCH_DATASETS: &str = r#"
+    SELECT dataset_id, dataset_name, manager_id, dataset_compression, dataset_format, dataset_classification, dataset_schema, dataset_desc, created_at, updated_at
+    FROM datasets
+    WHERE dataset_name LIKE '%' || $1 || '%'
+"#;
+
 pub const LIST_DATASETS: &str = r#"
     SELECT dataset_id, dataset_name, manager_id, dataset_compression, dataset_format, dataset_classification, dataset_schema, dataset_desc, created_at, updated_at
     FROM datasets

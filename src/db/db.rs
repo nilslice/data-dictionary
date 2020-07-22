@@ -246,6 +246,18 @@ impl DataService for Db {
             .into())
     }
 
+    async fn search_datasets(&mut self, term: &str) -> Result<Vec<Dataset>, Error> {
+        Ok(self
+            .client
+            .get()
+            .await?
+            .query(sql::SEARCH_DATASETS, &[&term])
+            .await?
+            .iter()
+            .map(Dataset::from)
+            .collect())
+    }
+
     async fn list_datasets(&mut self, params: Option<RangeParams>) -> Result<Vec<Dataset>, Error> {
         let (query, boxed_bindvars) = range_query::create(Target::Dataset, params);
         let bindvars = boxed_bindvars
