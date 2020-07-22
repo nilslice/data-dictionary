@@ -68,6 +68,10 @@ async fn main() -> Result<(), Error> {
                 "/api/dataset/register",
                 web::post().to(api::register_dataset),
             )
+            .route(
+                "/api/partitions/{dataset_name}",
+                web::get().to(api::list_partitions),
+            )
     });
     app.bind("127.0.0.1:8080")?.run().await?;
     Ok(())

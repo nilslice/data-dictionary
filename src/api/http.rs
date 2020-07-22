@@ -82,6 +82,61 @@ pub async fn register_manager(
 }
 
 #[derive(Deserialize)]
+pub struct ListPartitions {
+    dataset_name: String,
+}
+
+pub async fn list_partitions(
+    srv: Data<Server>,
+    params: Path<ListPartitions>,
+) -> Result<HttpResponse, Error> {
+    let mut resp = HttpResponse::build(StatusCode::OK);
+    let dataset = Dataset::find(&mut srv.db.clone(), &params.dataset_name).await;
+    if let Ok(dataset) = dataset {
+        match dataset.partitions(&mut srv.db.clone(), None).await {
+            Ok(partitions) => resp.json(partitions).await,
+            Err(e) => match e {
+                DDError::Sql(_) => {
+                    json_message(
+                        resp,
+                        StatusCode::NOT_FOUND,
+                        format!("no partitions found for dataset '{}'", params.dataset_name),
+                    )
+                    .await
+                }
+                _ => {
+                    json_message(
+                        resp,
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        format!(
+                            "failed to list parititions for dataset '{}'",
+                            params.dataset_name
+                        ),
+                    )
+                    .await
+                }
+            },
+        }
+    } else {
+        let msg = format!("no dataset found with name '{}'", params.dataset_name);
+        let err = dataset.err().expect("no dataset error specified");
+        log::error!("{}: {}", msg, err);
+
+        match err {
+            DDError::Sql(_) => json_message(resp, StatusCode::NOT_FOUND, msg).await,
+            _ => {
+                json_message(
+                    resp,
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    format!("failed to find dataset '{}'", params.dataset_name),
+                )
+                .await
+            }
+        }
+    }
+}
+
+#[derive(Deserialize)]
 pub struct FindPartition {
     dataset_name: String,
     partition_name: String,
