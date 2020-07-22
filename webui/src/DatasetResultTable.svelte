@@ -70,7 +70,7 @@
       Showing {dataset_count} {dataset_count > 1 ? 'results' : 'result'} for "{term}"
     </p>
   {/if}
-  <form on:submit={search} class="d-flex col-4">
+  <form on:submit={search} class="d-flex col-4 pb-3">
     <input
       bind:value={term}
       on:input={search}
@@ -88,33 +88,90 @@
     </div>
   </div>
 {:else}
-  <table class="table table-hover table-borderless">
+  <table class="table table-hover">
     <thead>
       <th scope="col">Name</th>
       <th scope="col">Description</th>
-      <th scope="col">Classification</th>
-      <th scope="col">Format</th>
-      <th scope="col">Compression</th>
+      <th scope="col">Attributes</th>
       <th scope="col">Latest Partition</th>
       <!-- TODO: touch dataset record updated_at when partition is added -->
     </thead>
     <tbody>
       {#each datasets as dataset, i}
-        <tr in:fade={{ delay: delay + i * 50 }}>
+        <tr in:fade={{ delay: delay + i * 20 }}>
           <th scope="row" class="font-weight-light">
-            <a href="/dataset/{dataset.name}">{dataset.name}</a>
+            <a class="link-primary" href="/dataset/{dataset.name}">
+              {dataset.name}
+            </a>
           </th>
           <td class="font-weight-light">
             <small>{dataset.description}</small>
           </td>
           <td>
-            <span class="badge bg-danger">{dataset.classification}</span>
-          </td>
-          <td>
-            <span class="badge bg-secondary">{dataset.format}</span>
-          </td>
-          <td>
-            <span class="badge bg-primary">{dataset.compression}</span>
+            <small class="col pr-2 text-danger">
+              <svg
+                width="1em"
+                height="1em"
+                viewBox="0 0 16 16"
+                class="bi bi-lock"
+                fill="currentColor"
+                xmlns="http://www.w3.org/2000/svg">
+                <path
+                  fill-rule="evenodd"
+                  d="M11.5 8h-7a1 1 0 0 0-1 1v5a1 1 0 0 0 1 1h7a1 1 0 0 0
+                  1-1V9a1 1 0 0 0-1-1zm-7-1a2 2 0 0 0-2 2v5a2 2 0 0 0 2 2h7a2 2
+                  0 0 0 2-2V9a2 2 0 0 0-2-2h-7zm0-3a3.5 3.5 0 1 1 7 0v3h-1V4a2.5
+                  2.5 0 0 0-5 0v3h-1V4z" />
+              </svg>
+              {dataset.classification}
+            </small>
+            <small class="col pr-2 text-secondary">
+              <svg
+                width="1em"
+                height="1em"
+                viewBox="0 0 16 16"
+                class="bi bi-code-square"
+                fill="currentColor"
+                xmlns="http://www.w3.org/2000/svg">
+                <path
+                  fill-rule="evenodd"
+                  d="M14 1H2a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V2a1
+                  1 0 0 0-1-1zM2 0a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0
+                  2-2V2a2 2 0 0 0-2-2H2z" />
+                <path
+                  fill-rule="evenodd"
+                  d="M6.854 4.646a.5.5 0 0 1 0 .708L4.207 8l2.647 2.646a.5.5 0 0
+                  1-.708.708l-3-3a.5.5 0 0 1 0-.708l3-3a.5.5 0 0 1 .708 0zm2.292
+                  0a.5.5 0 0 0 0 .708L11.793 8l-2.647 2.646a.5.5 0 0 0
+                  .708.708l3-3a.5.5 0 0 0 0-.708l-3-3a.5.5 0 0 0-.708 0z" />
+              </svg>
+              {dataset.format}
+            </small>
+            <small class="col pr-2 text-primary">
+              <svg
+                width="1em"
+                height="1em"
+                viewBox="0 0 16 16"
+                class="bi bi-file-zip"
+                fill="currentColor"
+                xmlns="http://www.w3.org/2000/svg">
+                <path
+                  fill-rule="evenodd"
+                  d="M4 1h8a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V3a2 2
+                  0 0 1 2-2zm0 1a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h8a1 1 0 0 0
+                  1-1V3a1 1 0 0 0-1-1H4z" />
+                <path
+                  fill-rule="evenodd"
+                  d="M6.5 8.5a1 1 0 0 1 1-1h1a1 1 0 0 1 1 1v.938l.4 1.599a1 1 0
+                  0 1-.416 1.074l-.93.62a1 1 0 0 1-1.109 0l-.93-.62a1 1 0 0
+                  1-.415-1.074l.4-1.599V8.5zm2 0h-1v.938a1 1 0 0 1-.03.243l-.4
+                  1.598.93.62.93-.62-.4-1.598a1 1 0 0 1-.03-.243V8.5z" />
+                <path
+                  d="M7.5 2H9v1H7.5zm-1 1H8v1H6.5zm1 1H9v1H7.5zm-1 1H8v1H6.5zm1
+                  1H9v1H7.5V6z" />
+              </svg>
+              {dataset.compression}
+            </small>
           </td>
           <td>
             <small class="text-muted">{dateTime(dataset.updated_at)}</small>
