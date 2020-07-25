@@ -5,20 +5,23 @@ pub const REGISTER_DATASET: &str = r#"
 "#;
 
 pub const FIND_DATASET: &str = r#"
-    SELECT dataset_id, dataset_name, manager_id, dataset_compression, dataset_format, dataset_classification, dataset_schema, dataset_desc, created_at, updated_at
+    SELECT dataset_id, dataset_name, datasets.manager_id, manager_email, dataset_compression, dataset_format, dataset_classification, dataset_schema, dataset_desc, datasets.created_at, datasets.updated_at
     FROM datasets
+    JOIN managers on datasets.manager_id = managers.manager_id
     WHERE dataset_name = $1
 "#;
 
 pub const SEARCH_DATASETS: &str = r#"
-    SELECT dataset_id, dataset_name, manager_id, dataset_compression, dataset_format, dataset_classification, dataset_schema, dataset_desc, created_at, updated_at
+    SELECT dataset_id, dataset_name, datasets.manager_id, manager_email, dataset_compression, dataset_format, dataset_classification, dataset_schema, dataset_desc, datasets.created_at, datasets.updated_at
     FROM datasets
+    JOIN managers on datasets.manager_id = managers.manager_id
     WHERE dataset_name LIKE '%' || $1 || '%'
 "#;
 
 pub const LIST_DATASETS: &str = r#"
-    SELECT dataset_id, dataset_name, manager_id, dataset_compression, dataset_format, dataset_classification, dataset_schema, dataset_desc, created_at, updated_at
+    SELECT dataset_id, dataset_name, datasets.manager_id, manager_email, dataset_compression, dataset_format, dataset_classification, dataset_schema, dataset_desc, datasets.created_at, datasets.updated_at
     FROM datasets
+    JOIN managers on datasets.manager_id = managers.manager_id
 "#;
 
 pub const DELETE_DATASET: &str = r#"
@@ -80,4 +83,17 @@ pub const AUTH_MANAGER: &str = r#"
     SELECT manager_id, manager_email, api_key, manager_hash, manager_salt, is_admin, created_at, updated_at
     FROM managers
     WHERE manager_email = $1
+"#;
+
+pub const DATASET_ATTRIBUTES: &str = r#"
+    WITH formats AS (
+        SELECT json_agg(enum_range(null::format_t))->>0 as format_variants
+    ),
+    compressions AS (
+        SELECT json_agg(enum_range(null::compression_t))->>0 as compression_variants
+    ),
+    classifications AS (
+        SELECT json_agg(enum_range(null::classification_t))->>0 as classification_variants
+    ) 
+    SELECT * FROM formats, compressions, classifications
 "#;

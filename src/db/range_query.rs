@@ -3,7 +3,7 @@ use crate::dict::RangeParams;
 
 use postgres_types::ToSql;
 
-fn query_append(target: Target, append: &str) -> String {
+fn query_append(target: &Target, append: &str) -> String {
     let (query, append) = match target {
         Target::Dataset => (sql::LIST_DATASETS, dec_placeholders(append)),
         Target::Partition => (sql::LIST_PARTITIONS, append.into()),
@@ -31,20 +31,20 @@ fn dec_placeholders(v: &str) -> String {
 fn test_dec_placeholders() {
     let cases = &[
         (
-            "AND created_at BETWEEN $2::TIMESTAMPTZ AND $3::TIMESTAMPTZ ORDER BY created_at ASC OFFSET $4::INTEGER LIMIT $5::INTEGER",
-            "AND created_at BETWEEN $1::TIMESTAMPTZ AND $2::TIMESTAMPTZ ORDER BY created_at ASC OFFSET $3::INTEGER LIMIT $4::INTEGER",
+            "AND created_at BETWEEN $2::TIMESTAMPTZ AND $3::TIMESTAMPTZ ORDER BY created_at DESC OFFSET $4::INTEGER LIMIT $5::INTEGER",
+            "AND created_at BETWEEN $1::TIMESTAMPTZ AND $2::TIMESTAMPTZ ORDER BY created_at DESC OFFSET $3::INTEGER LIMIT $4::INTEGER",
         ),
         (
-            "AND created_at >= $2 OFFSET $3::INTEGER ORDER BY created_at ASC LIMIT $4::INTEGER",
-            "AND created_at >= $1 OFFSET $2::INTEGER ORDER BY created_at ASC LIMIT $3::INTEGER",
+            "AND created_at >= $2 OFFSET $3::INTEGER ORDER BY created_at DESC LIMIT $4::INTEGER",
+            "AND created_at >= $1 OFFSET $2::INTEGER ORDER BY created_at DESC LIMIT $3::INTEGER",
         ),
         (
-            "OFFSET $2::INTEGER ORDER BY created_at ASC LIMIT $3::INTEGER",
-            "OFFSET $1::INTEGER ORDER BY created_at ASC LIMIT $2::INTEGER",
+            "OFFSET $2::INTEGER ORDER BY created_at DESC LIMIT $3::INTEGER",
+            "OFFSET $1::INTEGER ORDER BY created_at DESC LIMIT $2::INTEGER",
         ),
         (
-            "AND created_at <= $2::TIMESTAMPTZ ORDER BY created_at ASC",
-            "AND created_at <= $1::TIMESTAMPTZ ORDER BY created_at ASC",
+            "AND created_at <= $2::TIMESTAMPTZ ORDER BY created_at DESC",
+            "AND created_at <= $1::TIMESTAMPTZ ORDER BY created_at DESC",
         ),
     ];
 
@@ -56,7 +56,7 @@ fn test_dec_placeholders() {
 #[test]
 #[should_panic]
 fn test_dec_placeholders_panic() {
-    let _ = dec_placeholders("OFFSET $5::INTEGER ORDER BY created_at ASC LIMIT $6::INTEGER");
+    let _ = dec_placeholders("OFFSET $5::INTEGER ORDER BY created_at DESC LIMIT $6::INTEGER");
 }
 
 #[derive(Debug)]
@@ -65,41 +65,49 @@ pub enum Target {
     Partition,
 }
 
+fn ordering(target: &Target) -> String {
+    match target {
+        Target::Dataset => "updated_at".into(),
+        Target::Partition => "created_at".into(),
+    }
+}
+
 pub fn create(
     target: Target,
     params: Option<RangeParams>,
 ) -> (String, Vec<Box<(dyn ToSql + Sync + Send)>>) {
     if let Some(params) = params {
+        let order = ordering(&target);
+
         match (params.start, params.end, params.count, params.offset) {
-        (None, None, None, None) => (query_append(target, "ORDER BY created_at ASC"), vec![]),
+        (None, None, None, None) => (query_append(&target, &format!("ORDER BY {} DESC", order)), vec![]),
         (Some(start), None, None, None) => (
-            query_append(target, "AND created_at >= $2::TIMESTAMPTZ ORDER BY created_at ASC"),
+            query_append(&target, &format!("AND created_at >= $2::TIMESTAMPTZ ORDER BY {} DESC", order)),
             vec![Box::new(start)],
         ),
         (Some(start), Some(end), None, None) => (
-            query_append(target, "AND created_at BETWEEN $2::TIMESTAMPTZ AND $3::TIMESTAMPTZ ORDER BY created_at ASC"),
+            query_append(&target, &format!("AND created_at >= $2::TIMESTAMPTZ AND created_at <= $3::TIMESTAMPTZ ORDER BY {} DESC", order)),
             vec![Box::new(start), Box::new(end)],
         ),
         (None, Some(end), None, None) => (
-            query_append(target, "AND created_at <= $2::TIMESTAMPTZ ORDER BY created_at ASC"),
+            query_append(&target, &format!("AND created_at <= $2::TIMESTAMPTZ ORDER BY {} DESC", order)),
             vec![Box::new(end)],
         ),
         (None, None, Some(count), None) => {
-            (query_append(target, "ORDER BY created_at ASC LIMIT $2::INTEGER"), vec![Box::new(count)])
+            (query_append(&target, &format!("ORDER BY {} DESC LIMIT $2::INTEGER", order)), vec![Box::new(count)])
         }
-        (None, None, None, Some(offset)) => {
-            (query_append(target, "ORDER BY created_at ASC OFFSET $2::INTEGER"), vec![Box::new(offset)])
-        }
+        (None, None, None, Some(offset)) => 
+            (query_append(&target, &format!("ORDER BY {} DESC OFFSET $2::INTEGER", order)), vec![Box::new(offset)]),
         (None, None, Some(count), Some(offset)) => (
-            query_append(target, "ORDER BY created_at ASC OFFSET $2::INTEGER LIMIT $3::INTEGER"),
+            query_append(&target, &format!("ORDER BY {} DESC OFFSET $2::INTEGER LIMIT $3::INTEGER", order)),
             vec![Box::new(offset), Box::new(count)],
         ),
         (Some(start), None, Some(count), Some(offset)) => (
-            query_append(target, "AND created_at >= $2 OFFSET $3::INTEGER ORDER BY created_at ASC LIMIT $4::INTEGER"),
+            query_append(&target, &format!("AND created_at >= $2 OFFSET $3::INTEGER ORDER BY {} DESC LIMIT $4::INTEGER", order)),
             vec![Box::new(start), Box::new(offset), Box::new(count)],
         ),
         (Some(start), Some(end), Some(count), Some(offset)) => (
-            query_append(target, "AND created_at BETWEEN $2::TIMESTAMPTZ AND $3::TIMESTAMPTZ ORDER BY created_at ASC OFFSET $4::INTEGER LIMIT $5::INTEGER"),
+            query_append(&target, &format!("AND created_at BETWEEN $2::TIMESTAMPTZ AND $3::TIMESTAMPTZ ORDER BY {} DESC OFFSET $4::INTEGER LIMIT $5::INTEGER", order)),
             vec![
                 Box::new(start),
                 Box::new(end),
@@ -108,35 +116,35 @@ pub fn create(
             ],
         ),
         (None, Some(end), Some(count), Some(offset)) => (
-            query_append(target, "AND created_at <= $2::TIMESTAMPTZ OFFSET $3::INTEGER ORDER BY created_at ASC LIMIT $4::INTEGER"),
+            query_append(&target, &format!("AND created_at <= $2::TIMESTAMPTZ OFFSET $3::INTEGER ORDER BY {} DESC LIMIT $4::INTEGER", order)),
             vec![Box::new(end), Box::new(offset), Box::new(count)],
         ),
         (Some(start), Some(end), Some(count), None) => (
-            query_append(target,
-                "AND created_at BETWEEN $2::TIMESTAMPTZ AND $3::TIMESTAMPTZ ORDER BY created_at ASC LIMIT $4::INTEGER",
+            query_append(&target,
+                &format!("AND created_at BETWEEN $2::TIMESTAMPTZ AND $3::TIMESTAMPTZ ORDER BY {} DESC LIMIT $4::INTEGER", order),
             ),
             vec![Box::new(start), Box::new(end), Box::new(count)],
         ),
         (Some(start), Some(end), None, Some(offset)) => (
-            query_append(target,
-                "AND created_at BETWEEN $2::TIMESTAMPTZ AND $3::TIMESTAMPTZ ORDER BY created_at ASC OFFSET $4::INTEGER",
+            query_append(&target,
+                &format!("AND created_at BETWEEN $2::TIMESTAMPTZ AND $3::TIMESTAMPTZ ORDER BY {} DESC OFFSET $4::INTEGER", order),
             ),
             vec![Box::new(start), Box::new(end), Box::new(offset)],
         ),
         (Some(start), None, Some(count), None) => (
-            query_append(target, "AND created_at >= $2::TIMESTAMPTZ ORDER BY created_at ASC LIMIT $4::INTEGER"),
+            query_append(&target, &format!("AND created_at >= $2::TIMESTAMPTZ ORDER BY {} DESC LIMIT $4::INTEGER", order)),
             vec![Box::new(start), Box::new(count)],
         ),
         (Some(start), None, None, Some(offset)) => (
-            query_append(target, "AND created_at >= $2::TIMESTAMPTZ ORDER BY created_at ASC OFFSET $4::INTEGER"),
+            query_append(&target, &format!("AND created_at >= $2::TIMESTAMPTZ ORDER BY {} DESC OFFSET $4::INTEGER", order)),
             vec![Box::new(start), Box::new(offset)],
         ),
         (None, Some(end), Some(count), None) => (
-            query_append(target, "AND created_at <= $2::TIMESTAMPTZ ORDER BY created_at ASC LIMIT $4::INTEGER"),
+            query_append(&target, &format!("AND created_at <= $2::TIMESTAMPTZ ORDER BY {} DESC LIMIT $4::INTEGER", order)),
             vec![Box::new(end), Box::new(count)],
         ),
         (None, Some(end), None, Some(offset)) => (
-            query_append(target, "AND created_at <= $2::TIMESTAMPTZ ORDER BY created_at ASC OFFSET $4::INTEGER"),
+            query_append(&target, &format!("AND created_at <= $2::TIMESTAMPTZ ORDER BY {} DESC OFFSET $4::INTEGER", order)),
             vec![Box::new(end), Box::new(offset)],
         ),
        }

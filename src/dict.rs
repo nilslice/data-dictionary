@@ -93,6 +93,20 @@ impl Manager {
     }
 }
 
+#[derive(Debug, Serialize)]
+pub struct Attributes {
+    pub format: Vec<Format>,
+    pub compression: Vec<Compression>,
+    pub classification: Vec<Classification>,
+}
+
+impl Attributes {
+    pub async fn list(svc: &mut impl DataService) -> Result<Attributes, Error> {
+        info!("listing dataset attributes");
+        svc.list_dataset_attributes().await
+    }
+}
+
 /// A Format is used to indicate the data format within the file(s).
 #[derive(Debug, FromSql, ToSql, Serialize, Deserialize, Clone)]
 #[postgres(name = "format_t")]
@@ -124,7 +138,7 @@ impl std::fmt::Display for Format {
 }
 
 #[test]
-fn test_display_encoding() {
+fn test_display_format() {
     assert_eq!("plaintext", format!("{}", Format::PlainText));
     assert_eq!("json", format!("{}", Format::Json));
     assert_eq!("ndjson", format!("{}", Format::NdJson));
@@ -229,6 +243,7 @@ pub type DatasetSchema = std::collections::HashMap<String, Option<String>>;
 pub struct Dataset {
     pub id: i32,
     pub manager_id: i32,
+    pub manager_email: String,
     pub name: String,
     pub classification: Classification,
     pub compression: Compression,
@@ -268,7 +283,7 @@ impl Dataset {
         svc.search_datasets(term.as_ref()).await
     }
 
-    /// Retrieves all datasets from the database.
+    /// Retrieves all datasets from the database ordered by their updated_at timestamp.
     pub async fn list(
         svc: &mut impl DataService,
         params: Option<RangeParams>,

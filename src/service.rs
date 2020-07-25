@@ -1,5 +1,6 @@
 use crate::dict::{
-    Classification, Compression, Dataset, DatasetSchema, Format, Manager, Partition, RangeParams,
+    Attributes, Classification, Compression, Dataset, DatasetSchema, Format, Manager, Partition,
+    RangeParams,
 };
 use crate::error::Error;
 
@@ -26,6 +27,8 @@ pub trait DataService {
     async fn list_datasets(&mut self, params: Option<RangeParams>) -> Result<Vec<Dataset>, Error>;
 
     async fn delete_dataset(&mut self, dataset: &Dataset) -> Result<(), Error>;
+
+    async fn list_dataset_attributes(&mut self) -> Result<Attributes, Error>;
 
     async fn register_partition(
         &mut self,

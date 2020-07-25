@@ -66,6 +66,16 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+-- function to update dataset table when partition is created
+CREATE OR REPLACE FUNCTION on_partition_create_update_dataset()
+RETURNS TRIGGER AS $$
+BEGIN    
+    UPDATE datasets SET updated_at = NOW() 
+    WHERE datasets.dataset_id = NEW.dataset_id;
+    RETURN NEW;
+END
+$$ LANGUAGE plpgsql;
+
 -- apply on_update_set_timestamp function as trigger to initial tables
 CREATE TRIGGER auto_update_timestamp
 BEFORE UPDATE ON managers
@@ -81,3 +91,9 @@ CREATE TRIGGER auto_update_timestamp
 BEFORE UPDATE ON datasets
 FOR EACH ROW
 EXECUTE PROCEDURE on_update_set_timestamp();
+
+-- apply on_partition_create_update_dataset function as trigger to partition table
+CREATE TRIGGER auto_update_fk_dataset_timestamp
+AFTER INSERT ON partitions
+FOR EACH ROW
+EXECUTE PROCEDURE on_partition_create_update_dataset();

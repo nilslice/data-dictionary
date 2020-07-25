@@ -3,8 +3,8 @@ use std::env;
 use crate::db::range_query::{self, Target};
 use crate::db::sql;
 use crate::dict::{
-    Classification, Compression, Dataset, DatasetSchema, Format, Manager, Partition, RangeParams,
-    PARTITION_LATEST,
+    Attributes, Classification, Compression, Dataset, DatasetSchema, Format, Manager, Partition,
+    RangeParams, PARTITION_LATEST,
 };
 use crate::error::Error;
 use crate::service::DataService;
@@ -109,6 +109,7 @@ impl From<&Row> for Dataset {
             id: row.get("dataset_id"),
             name: row.get("dataset_name"),
             manager_id: row.get("manager_id"),
+            manager_email: row.try_get("manager_email").unwrap_or("".into()),
             classification: row.get("dataset_classification"),
             compression: row.get("dataset_compression"),
             format: row.get("dataset_format"),
@@ -126,6 +127,7 @@ impl From<Row> for Dataset {
             id: row.get("dataset_id"),
             name: row.get("dataset_name"),
             manager_id: row.get("manager_id"),
+            manager_email: row.try_get("manager_email").unwrap_or("".into()),
             classification: row.get("dataset_classification"),
             compression: row.get("dataset_compression"),
             format: row.get("dataset_format"),
@@ -194,6 +196,35 @@ impl From<&Row> for Manager {
         }
     }
 }
+
+impl From<&Row> for Attributes {
+    fn from(row: &Row) -> Self {
+        let formats = row.get("format_variants");
+        let compressions = row.get("compression_variants");
+        let classifications = row.get("classification_variants");
+
+        Self {
+            format: serde_json::from_str(formats).unwrap_or(vec![]),
+            compression: serde_json::from_str(compressions).unwrap_or(vec![]),
+            classification: serde_json::from_str(classifications).unwrap_or(vec![]),
+        }
+    }
+}
+
+impl From<Row> for Attributes {
+    fn from(row: Row) -> Self {
+        let formats = row.get("format_variants");
+        let compressions = row.get("compression_variants");
+        let classifications = row.get("classification_variants");
+
+        Self {
+            format: serde_json::from_str(formats).unwrap_or(vec![]),
+            compression: serde_json::from_str(compressions).unwrap_or(vec![]),
+            classification: serde_json::from_str(classifications).unwrap_or(vec![]),
+        }
+    }
+}
+
 #[derive(Debug)]
 enum PartitionQuery {
     Named,
@@ -287,6 +318,16 @@ impl DataService for Db {
             .await
             .map(|_| ())
             .map_err(|e| Error::Generic(Box::new(e)))
+    }
+
+    async fn list_dataset_attributes(&mut self) -> Result<Attributes, Error> {
+        Ok(self
+            .client
+            .get()
+            .await?
+            .query_one(sql::DATASET_ATTRIBUTES, &[])
+            .await?
+            .into())
     }
 
     async fn register_partition(
