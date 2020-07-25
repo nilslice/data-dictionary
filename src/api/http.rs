@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use crate::bucket::BucketManager;
 use crate::db::Db;
-use crate::dict::{Dataset, DatasetConfig, Manager, RangeParams};
+use crate::dict::{Attributes, Dataset, DatasetConfig, Manager, RangeParams};
 use crate::error::Error as DDError;
 
 use actix_http::Response;
@@ -452,6 +452,21 @@ pub async fn search_datasets(
     } else {
         let msg = "dataset search failure";
         let err = matches.err().expect("no dataset search error specified");
+        log::error!("{}: {}", msg, err);
+
+        json_message(resp, StatusCode::INTERNAL_SERVER_ERROR, msg).await
+    }
+}
+
+pub async fn list_attributes(srv: Data<Server>) -> Result<HttpResponse, Error> {
+    let mut resp = HttpResponse::build(StatusCode::OK);
+
+    let attrs = Attributes::list(&mut srv.db.clone()).await;
+    if let Ok(attrs) = attrs {
+        resp.json(attrs).await
+    } else {
+        let msg = "attributes list failure";
+        let err = attrs.err().expect("failed to list attributes");
         log::error!("{}: {}", msg, err);
 
         json_message(resp, StatusCode::INTERNAL_SERVER_ERROR, msg).await
