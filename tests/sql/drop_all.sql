@@ -6,4 +6,5 @@ DROP TYPE IF EXISTS compression_t CASCADE;
 DROP TYPE IF EXISTS encoding_t CASCADE;
 DROP TYPE IF EXISTS classification_t CASCADE;
 DROP FUNCTION IF EXISTS on_update_set_timestamp CASCADE;
+DROP FUNCTION IF EXISTS on_partition_create_update_dataset CASCADE;
 DROP EXTENSION IF EXISTS hstore CASCADE;

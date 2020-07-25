@@ -1,7 +1,7 @@
 mod testutil;
 use testutil::Rand::{Email, PartitionName, PartitionUrl, Password, String};
 
-use data_dictionary::dict::{Classification, Compression, Format};
+use data_dictionary::dict::{Attributes, Classification, Compression, Format};
 use data_dictionary::dict::{Dataset, DatasetConfig, Manager, Partition};
 use data_dictionary::service::DataService;
 
@@ -103,6 +103,7 @@ async fn test_dataset() {
         Compression::Tar,
         Classification::Public,
     ));
+    let dataset = all_datasets.first().unwrap();
     let partition_result = dataset
         .register_partition(
             &mut test_db.db,
@@ -111,6 +112,7 @@ async fn test_dataset() {
             testutil::rand_size(),
         )
         .await;
+
     assert!(partition_result.is_ok());
     let partition = partition_result.unwrap();
     assert_ne!(partition.id, 0);
@@ -422,11 +424,11 @@ async fn test_range_query_partitions() {
 
     let partitions_all = dataset.partitions(&mut test_db.db, None).await.unwrap();
     assert_eq!(partitions_all.len(), partition_count);
-    // test that range ordering is correct, sorted by created_at ASC
+    // test that range ordering is correct, sorted by created_at DESC
     // TODO: reimplement this test once `is_sorted_by_key` is stablized
     let mut last: &Partition = partitions_all.get(0).unwrap();
     for p in partitions_all.iter().skip(1) {
-        assert!(p.created_at > last.created_at);
+        assert!(last.created_at.gt(&p.created_at));
         assert_ne!(p.name, "");
         assert_ne!(p.url, "");
         last = p;
@@ -506,12 +508,14 @@ async fn test_range_query_partitions() {
     // test start + end parameters
     params = Default::default();
     params.start = Some(midpoint);
-    // use an end date somewhere near the tail of the full set of partitions
-    params.end = Some(partitions_all.get(partition_count - 3).unwrap().created_at);
+    // use an the first partition of the full set of partitions, since it is the most recent time
+    params.end = Some(partitions.first().unwrap().created_at);
     let actual_count = dataset
         .partitions(&mut test_db.db, Some(params))
         .await
         .unwrap();
+    assert!(actual_count.len() > 0);
+
     let end = params.end.unwrap();
     let start = params.start.unwrap();
     for p in actual_count.iter() {
@@ -537,7 +541,7 @@ async fn test_range_query_partitions() {
         .get(0)
         .unwrap()
         .created_at
-        .lt(&actual_count_limit_offset.get(0).unwrap().created_at));
+        .gt(&actual_count_limit_offset.get(0).unwrap().created_at));
 
     // test start + end + offset
     params.count = None;
@@ -549,7 +553,7 @@ async fn test_range_query_partitions() {
         .get(0)
         .unwrap()
         .created_at
-        .lt(&actual_count_offset.get(0).unwrap().created_at));
+        .gt(&actual_count_offset.get(0).unwrap().created_at));
 
     testutil::drop_test_db(test_db).await.unwrap();
 }
@@ -593,10 +597,9 @@ async fn test_range_query_datasets() {
     params.offset = Some(5);
     let limited_offset_datasets = Dataset::list(&mut test_db.db, Some(params)).await.unwrap();
     for (i, offset_dataset) in limited_offset_datasets.iter().enumerate() {
-        assert!(offset_dataset.id > limited_datasets.get(i).unwrap().id);
         assert!(offset_dataset
-            .created_at
-            .gt(&limited_datasets.get(i).unwrap().created_at))
+            .updated_at
+            .lt(&limited_datasets.get(i).unwrap().updated_at))
     }
 
     testutil::drop_test_db(test_db).await.unwrap();
@@ -720,6 +723,22 @@ async fn test_dataset_search() {
     for t in tests {
         let matches = Dataset::search(&mut test_db.db, t.0).await.unwrap();
         assert_eq!(matches.len(), t.1);
+    }
+    testutil::drop_test_db(test_db).await.unwrap();
+}
+
+#[tokio::test]
+async fn test_attributes() {
+    let mut test_db = testutil::new_test_db().await.unwrap();
+    let attrs = Attributes::list(&mut test_db.db).await.unwrap();
+    for expected in &[
+        "protobuf",
+        "ndjson",
+        "private",
+        "uncompressed",
+        "confidential",
+    ] {
+        assert!(serde_json::to_string(&attrs).unwrap().contains(expected))
     }
     testutil::drop_test_db(test_db).await.unwrap();
 }
