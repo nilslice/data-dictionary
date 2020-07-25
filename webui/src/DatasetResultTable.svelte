@@ -1,6 +1,7 @@
 <script>
   import { fade } from "svelte/transition";
   import dateformat from "dateformat";
+  import { writable } from "svelte/store";
 
   export let url = "http://localhost:8080/api/datasets";
   export let count = 10;
@@ -8,15 +9,16 @@
   export let loading = true;
 
   let datasets = [];
+  let next_count = 0;
   let delay = 0;
   let term = "";
-  let showingSearchResults = false;
-  let dataset_count = 0;
+  let showing_search_results = false;
+  let search_result_count = 0;
   let search_debounce_timer;
 
   const dateTime = (t) => {
     let date = new Date(t);
-    return dateformat(date, "dd/mm/yyyy, h:MM:ssTT Z");
+    return dateformat(date, "mm/dd/yyyy h:MM:ssTT Z");
   };
 
   const search = (ev) => {
@@ -25,8 +27,8 @@
 
     search_debounce_timer = setTimeout(() => {
       if (term === "") {
-        showingSearchResults = false;
         offset = 0;
+        search_result_count = 0;
         getDatasets(count, offset);
         return;
       }
@@ -38,7 +40,7 @@
         .then((data) => {
           loading = false;
           datasets = data;
-          showingSearchResults = true;
+          search_result_count = data.length;
         });
     }, 100);
   };
@@ -54,32 +56,43 @@
       });
   };
 
-  $: {
-    dataset_count = datasets.length;
-  }
-
-  $: {
-    getDatasets(count, offset);
-  }
+  $: showing_search_results = term === "" ? false : true;
+  $: can_previous = offset < 1 ? "disabled" : "";
+  $: getDatasets(count, offset);
 </script>
 
-<div
-  class="row pt-3 pb-3 justify-content-{showingSearchResults ? 'between' : 'end'}">
-  {#if showingSearchResults}
-    <p class="col-8 d-flex align-middle">
-      Showing {dataset_count} {dataset_count > 1 ? 'results' : 'result'} for "{term}"
-    </p>
-  {/if}
-  <form on:submit={search} class="d-flex col-4 pb-3">
-    <input
-      bind:value={term}
-      on:input={search}
-      class="form-control mr-2"
-      type="search"
-      placeholder="Find a Dataset"
-      aria-label="Search to find an existing dataset" />
-    <button class="btn btn-outline-primary" type="submit">Search</button>
-  </form>
+<style>
+  .search-result-title span {
+    display: block;
+    text-align: right;
+    width: 100%;
+  }
+</style>
+
+<div class="row pt-3 pb-5">
+  <div class="search-result-title col align-self-end">
+    {#if showing_search_results}
+      <span in:fade>
+        Showing
+        <strong>&nbsp;{search_result_count}&nbsp;</strong>
+        {search_result_count > 1 || search_result_count === 0 ? 'results' : 'result'}
+        for
+        <strong>&nbsp;"{term}"&nbsp;</strong>
+      </span>
+    {/if}
+  </div>
+  <div class="col-4">
+    <form on:submit={search} class="input-group">
+      <input
+        bind:value={term}
+        on:input={search}
+        class="form-control mr-2"
+        type="search"
+        placeholder="Find a Dataset"
+        aria-label="Search to find an existing dataset" />
+      <button class="btn btn-outline-primary" type="submit">Search</button>
+    </form>
+  </div>
 </div>
 {#if loading}
   <div class="d-b mx-auto py-2" style="width: 32px">
@@ -93,8 +106,7 @@
       <th scope="col">Name</th>
       <th scope="col">Description</th>
       <th scope="col">Attributes</th>
-      <th scope="col">Latest Partition</th>
-      <!-- TODO: touch dataset record updated_at when partition is added -->
+      <th scope="col">Last Partitioned</th>
     </thead>
     <tbody>
       {#each datasets as dataset, i}
@@ -180,4 +192,20 @@
       {/each}
     </tbody>
   </table>
+{/if}
+{#if !showing_search_results}
+  <div class="row justify-content-center">
+    <button
+      class="m-1 col-1 btn btn-light {can_previous}"
+      on:click={() => offset--}
+      role="button">
+      Previous
+    </button>
+    <button
+      class="m-1 col-1 align-self-end btn btn-light"
+      on:click={() => offset++}
+      role="button">
+      Next
+    </button>
+  </div>
 {/if}
