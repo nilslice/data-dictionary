@@ -3,6 +3,7 @@
   import bytes from "bytes";
   import dateformat from "dateformat";
   import { fade } from "svelte/transition";
+  import Usage from "./Usage.svelte";
 
   export let dataset_name;
 
@@ -13,15 +14,26 @@
   let schema = {};
   let url = "http://localhost:8080/api";
   let dataset_url = `${url}/dataset`;
+  let meta_url = `${url}/datasets/meta`;
+  let partitions_url;
   let delay = 0;
+  let buckets = {};
 
   onMount(() => {
     loading = true;
+    fetch(`${meta_url}`)
+      .then((resp) => resp.json())
+      .then((data) => {
+        console.log(data.buckets);
+        buckets = data.buckets;
+      });
+
     fetch(`${dataset_url}/${dataset_name}`)
       .then((resp) => resp.json())
       .then((data) => {
         dataset = data;
         schema = data.schema;
+        partitions_url = `${url}/partitions/${data.name}`;
       });
 
     fetch(`${dataset_url}/${dataset_name}/latest`)
@@ -35,6 +47,19 @@
         loading = false;
       });
   });
+
+  const dataset_api_latest = () => {
+    return `http://localhost:8080/api/dataset/${dataset.name}/latest`;
+  };
+  const dataset_gsutil = () => {
+    return `gs://${buckets[dataset.classification]}/${dataset.name}`;
+  };
+  const partition_gsutil = (partition_name) => {
+    return `${dataset_gsutil()}/${partition_name}`;
+  };
+  const partition_latest_path = () => {
+    return `./local/path/to/${latest_partition.partition_name}`;
+  };
 
   $: partitions = partitions.sort((a, b) => {
     if (new Date(a.created_at) > new Date(b.created_at)) {
@@ -50,12 +75,38 @@
 </script>
 
 <style>
+  .dollar {
+    color: yellow;
+    transform: scale(1.3);
+    margin-bottom: 15px;
+  }
+
+  .command {
+    display: inline-block;
+    color: lightgoldenrodyellow;
+    margin-bottom: 15px;
+  }
+
+  .comment {
+    color: white;
+    opacity: 0.5;
+    font-weight: lighter;
+  }
+
   .user-select-all {
     cursor: grab;
   }
 
   a.btn:hover {
     text-decoration: none;
+  }
+
+  .dev-usage p {
+    font-family: monospace;
+    padding: 20px 20px;
+    font-weight: bold;
+    color: #ffffff;
+    background: #292929;
   }
 </style>
 
@@ -69,7 +120,71 @@
   <section in:fade={{ duration: 300 }}>
     <div class="card col-12 mt-5">
       <div class="card-header">
-        <h2 class="mt-2 mb-4 user-select-all">{dataset_name}</h2>
+        <div class="row justify-content-end">
+          <div class="col">
+            <h2 class="mt-2 mb-4 user-select-all">{dataset_name}</h2>
+          </div>
+
+          <div class="col">
+            <div>
+              <button
+                class="btn btn-black btn-small float-right"
+                type="button"
+                data-toggle="collapse"
+                data-target="#dataset-usage"
+                aria-expanded="false"
+                aria-controls="dataset-usage">
+                <svg
+                  width="1em"
+                  height="1em"
+                  viewBox="0 0 16 16"
+                  class="bi bi-terminal-fill"
+                  fill="currentColor"
+                  xmlns="http://www.w3.org/2000/svg">
+                  <path
+                    fill-rule="evenodd"
+                    d="M0 3a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H2a2
+                    2 0 0 1-2-2V3zm9.5 5.5h-3a.5.5 0 0 0 0 1h3a.5.5 0 0 0
+                    0-1zm-6.354-.354L4.793 6.5 3.146 4.854a.5.5 0 1 1
+                    .708-.708l2 2a.5.5 0 0 1 0 .708l-2 2a.5.5 0 0 1-.708-.708z" />
+                </svg>
+                <span class="font-monospace">
+                  <small>CLI/API Usage</small>
+                </span>
+              </button>
+            </div>
+          </div>
+          <div class="collapse dev-usage" id="dataset-usage">
+            <p>
+              <code class="comment">Using the HTTP API:</code>
+              <br />
+              <code class="comment">-------------------</code>
+              <br />
+              <br />
+              <Usage
+                comment={`find the latest partition of a dataset (GET /api/dataset/{dataset_name}/latest)`}
+                command={`curl ${dataset_api_latest()}`} />
+              <Usage
+                comment={`list all partitions using optional parameters (GET /api/dataset/{dataset_name}?count={int}&offset={int}`}
+                command={`curl ${partitions_url}`} />
+              <br />
+              <br />
+
+              <code class="comment">Using `gsutil` with cloud storage:</code>
+              <br />
+              <code class="comment">----------------------------------</code>
+              <br />
+              <br />
+              <Usage
+                comment={`copy entire dataset from cloud storage using Google Cloud's
+            \`gsutil\``}
+                command={`gsutil -m cp -r ${dataset_gsutil()} .`} />
+              <Usage
+                comment={`create a new partition (after dataset is registered)`}
+                command={`gsutil cp ${partition_latest_path()} ${dataset_gsutil()}`} />
+            </p>
+          </div>
+        </div>
         <div class="row row-cols-auto font-weight-normal">
           <span class="col text-danger">
             <svg
@@ -176,26 +291,85 @@
         {/each}
       </tbody>
     </table>
+    <div class="row pt-5 justify-content-between">
+      <div class="col">
+        <h3>Partitions</h3>
+      </div>
+      <div class="col">
+        <button
+          class="btn btn-black btn-small float-right"
+          type="button"
+          data-toggle="collapse"
+          data-target="#partition-usage"
+          aria-expanded="false"
+          aria-controls="partition-usage">
+          <svg
+            width="1em"
+            height="1em"
+            viewBox="0 0 16 16"
+            class="bi bi-terminal-fill"
+            fill="currentColor"
+            xmlns="http://www.w3.org/2000/svg">
+            <path
+              fill-rule="evenodd"
+              d="M0 3a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H2a2 2 0 0
+              1-2-2V3zm9.5 5.5h-3a.5.5 0 0 0 0 1h3a.5.5 0 0 0
+              0-1zm-6.354-.354L4.793 6.5 3.146 4.854a.5.5 0 1 1 .708-.708l2
+              2a.5.5 0 0 1 0 .708l-2 2a.5.5 0 0 1-.708-.708z" />
+          </svg>
+          <span class="font-monospace">
+            <small>CLI/API Usage</small>
+          </span>
+        </button>
 
-    <h3 class="mt-5">Partitions</h3>
+      </div>
+      <div class="collapse dev-usage" id="partition-usage">
+        <p>
+          <code class="comment">Using the HTTP API:</code>
+          <br />
+          <code class="comment">-------------------</code>
+          <br />
+          <br />
+          <Usage
+            comment={`find the latest partition of a dataset (GET /api/dataset/{dataset_name}/latest)`}
+            command={`curl ${dataset_api_latest()}`} />
+          <Usage
+            comment={`get a specific partition (GET /api/dataset/{dataset_name}/${latest_partition.name}`}
+            command={`curl ${partitions_url}`} />
+          <br />
+          <br />
 
-    {#each partitions as p, i}
-      <ul
-        in:fade={{ delay: delay + i * 50 }}
-        class="list-group list-group-flush border-bottom py-3">
-        <li class="list-group-item">
-          <h6>
-            <span class="user-select-all">{p.partition_name}</span>
-            {#if p.partition_id === latest_partition.partition_id}
-              <span class="ml-1 badge bg-warning mr-2">LATEST</span>
-            {/if}
+          <code class="comment">Using `gsutil` with cloud storage:</code>
+          <br />
+          <code class="comment">----------------------------------</code>
+          <br />
+          <br />
+          <Usage
+            comment={`copy entire dataset from cloud storage using Google Cloud's
+        \`gsutil\``}
+            command={`gsutil -m cp -r ${dataset_gsutil()} .`} />
+          <Usage
+            comment={`create a new partition (after dataset is registered)`}
+            command={`gsutil cp ${partition_latest_path()} ${dataset_gsutil()}`} />
+        </p>
+      </div>
+      {#each partitions as p, i}
+        <ul
+          in:fade={{ delay: delay + i * 50 }}
+          class="list-group list-group-flush border-bottom py-3">
+          <li class="list-group-item">
+            <h6>
+              <span class="user-select-all">{p.partition_name}</span>
+              {#if p.partition_id === latest_partition.partition_id}
+                <span class="ml-1 badge bg-warning mr-2">LATEST</span>
+              {/if}
 
-            <a
-              class="btn btn-outline-success btn-sm float-right
-              font-weight-light object-link"
-              role="button"
-              href={p.partition_url}>
-              <!-- <svg
+              <a
+                class="btn btn-outline-success btn-sm float-right
+                font-weight-light object-link"
+                role="button"
+                href={p.partition_url}>
+                <!-- <svg
             width="1.2em"
             height="1.2em"
             viewBox="0 0 16 16"
@@ -221,32 +395,33 @@
               1-.896.518 1.99 1.99 0 0 1-.518.896l-.167.167A3.004 3.004 0 0 0 10
               9.501z" />
           </svg> -->
-              Link to object:
-              <svg
-                width="1em"
-                height="1em"
-                viewBox="0 0 16 16"
-                class="bi bi-file-earmark-spreadsheet-fill"
-                fill="currentColor"
-                xmlns="http://www.w3.org/2000/svg">
-                <path
-                  fill-rule="evenodd"
-                  d="M2 3a2 2 0 0 1 2-2h5.293a1 1 0 0 1 .707.293L13.707 5a1 1 0
-                  0 1 .293.707V13a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V3zm7 2V2l4
-                  4h-3a1 1 0 0 1-1-1zM3
-                  8v1h2v2H3v1h2v2h1v-2h3v2h1v-2h3v-1h-3V9h3V8H3zm3 3V9h3v2H6z" />
-              </svg>
+                Link to object:
+                <svg
+                  width="1em"
+                  height="1em"
+                  viewBox="0 0 16 16"
+                  class="bi bi-file-earmark-spreadsheet-fill"
+                  fill="currentColor"
+                  xmlns="http://www.w3.org/2000/svg">
+                  <path
+                    fill-rule="evenodd"
+                    d="M2 3a2 2 0 0 1 2-2h5.293a1 1 0 0 1 .707.293L13.707 5a1 1
+                    0 0 1 .293.707V13a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V3zm7 2V2l4
+                    4h-3a1 1 0 0 1-1-1zM3
+                    8v1h2v2H3v1h2v2h1v-2h3v2h1v-2h3v-1h-3V9h3V8H3zm3 3V9h3v2H6z" />
+                </svg>
 
-              <small>{bytes(p.partition_size)}</small>
-            </a>
-          </h6>
-          <small
-            class="font-monospace font-weight-light text-muted font-italic
-            text-left">
-            {dateformat(p.created_at, 'mm/dd/yyyy HH:MM:ss Z', 'utc')} ({dateformat(p.created_at, 'HH:MM:ss Z')})
-          </small>
-        </li>
-      </ul>
-    {/each}
+                <small>{bytes(p.partition_size)}</small>
+              </a>
+            </h6>
+            <small
+              class="font-monospace font-weight-light text-muted font-italic
+              text-left">
+              {dateformat(p.created_at, 'mm/dd/yyyy HH:MM:ss Z', 'utc')} ({dateformat(p.created_at, 'HH:MM:ss Z')})
+            </small>
+          </li>
+        </ul>
+      {/each}
+    </div>
   </section>
 {/if}

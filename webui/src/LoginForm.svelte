@@ -6,20 +6,21 @@
 
   let email = "";
   let password = "";
+  let manager_id;
   let register = false;
   let error_message = "";
 
-  const login = ev => {
+  const login = (ev) => {
     ev.preventDefault();
     const init = {
       body: JSON.stringify({
         email: email,
-        password: password
+        password: password,
       }),
       method: "POST",
       headers: {
-        "content-type": "application/json"
-      }
+        "content-type": "application/json",
+      },
     };
 
     let url = "http://localhost:8080/api/manager/login";
@@ -29,10 +30,14 @@
     }
 
     fetch(url, init)
-      .then(resp => resp.json())
-      .then(data => {
-        if (data.api_key && data.email) {
-          user.set({ api_key: data.api_key, email: data.email });
+      .then((resp) => resp.json())
+      .then((data) => {
+        if (data.api_key && data.email && data.id) {
+          user.set({
+            api_key: data.api_key,
+            email: data.email,
+            manager_id: data.id,
+          });
         } else {
           if (data.message) {
             error_message = data.message;

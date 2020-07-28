@@ -42,7 +42,7 @@
           datasets = data;
           search_result_count = data.length;
         });
-    }, 100);
+    }, 200);
   };
 
   const getDatasets = (count, offset) => {
@@ -86,7 +86,7 @@
       <input
         bind:value={term}
         on:input={search}
-        class="form-control mr-2"
+        class="form-control"
         type="search"
         placeholder="Find a Dataset"
         aria-label="Search to find an existing dataset" />
@@ -116,7 +116,7 @@
               {dataset.name}
             </a>
           </th>
-          <td class="font-weight-light">
+          <td class="text-truncate font-weight-light" style="max-width: 400px">
             <small>{dataset.description}</small>
           </td>
           <td>
