@@ -50,10 +50,7 @@ async fn main() -> Result<(), Error> {
                 "/api/manager/register",
                 web::post().to(api::register_manager),
             )
-            .route(
-                "/api/datasets/attributes",
-                web::get().to(api::list_attributes),
-            )
+            .route("/api/datasets/meta", web::get().to(api::list_meta))
             .route("/api/datasets/search", web::get().to(api::search_datasets))
             .route("/api/datasets", web::get().to(api::list_datasets))
             .route(

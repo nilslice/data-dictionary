@@ -1,8 +1,9 @@
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use crate::bucket::BucketManager;
 use crate::db::Db;
-use crate::dict::{Attributes, Dataset, DatasetConfig, Manager, RangeParams};
+use crate::dict::{Attributes, Classification, Dataset, DatasetConfig, Manager, RangeParams};
 use crate::error::Error as DDError;
 
 use actix_http::Response;
@@ -458,12 +459,14 @@ pub async fn search_datasets(
     }
 }
 
-pub async fn list_attributes(srv: Data<Server>) -> Result<HttpResponse, Error> {
+pub async fn list_meta(srv: Data<Server>) -> Result<HttpResponse, Error> {
     let mut resp = HttpResponse::build(StatusCode::OK);
 
     let attrs = Attributes::list(&mut srv.db.clone()).await;
     if let Ok(attrs) = attrs {
-        resp.json(attrs).await
+        let buckets: HashMap<Classification, String> = HashMap::from(srv.bucket_manager.as_ref());
+        resp.json(serde_json::json!({ "attrs": attrs, "buckets": buckets }))
+            .await
     } else {
         let msg = "attributes list failure";
         let err = attrs.err().expect("failed to list attributes");

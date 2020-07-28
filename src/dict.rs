@@ -203,7 +203,7 @@ impl FileExt for Compression {
 }
 
 /// A Classification is used to indicate the level of security needed to protect datasets.
-#[derive(Debug, FromSql, ToSql, Serialize, Deserialize, Clone)]
+#[derive(Debug, FromSql, ToSql, Serialize, Deserialize, Clone, PartialEq, Eq, Hash)]
 #[postgres(name = "classification_t")]
 pub enum Classification {
     #[postgres(name = "confidential")]

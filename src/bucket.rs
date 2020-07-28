@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::env;
 
 use crate::dict::{Classification, DatasetConfig};
@@ -91,5 +92,19 @@ impl BucketManager {
                 Err(Error::Http(msg))
             }
         }
+    }
+}
+
+impl From<&BucketManager> for HashMap<Classification, String> {
+    fn from(bm: &BucketManager) -> Self {
+        let mut buckets = HashMap::new();
+        buckets.insert(Classification::Private, bm.bucket_name_private.clone());
+        buckets.insert(Classification::Public, bm.bucket_name_public.clone());
+        buckets.insert(
+            Classification::Confidential,
+            bm.bucket_name_confidential.clone(),
+        );
+        buckets.insert(Classification::Sensitive, bm.bucket_name_sensitive.clone());
+        buckets
     }
 }
