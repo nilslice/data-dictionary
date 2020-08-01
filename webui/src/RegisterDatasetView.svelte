@@ -56,8 +56,9 @@
   const register = (ev) => {
     ev.preventDefault();
     schema_entries.forEach((e) => {
-      console.log(e);
-      schema[e[0]] = e[1];
+      if (e[0] && e[1]) {
+        schema[e[0]] = e[1];
+      }
     });
     schema = schema;
 

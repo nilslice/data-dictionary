@@ -52,13 +52,24 @@
     return `http://localhost:8080/api/dataset/${dataset.name}/latest`;
   };
   const dataset_gsutil = () => {
-    return `gs://${buckets[dataset.classification]}/${dataset.name}`;
+    return `gs://${buckets[dataset.classification]}/${dataset.name}/`;
   };
   const partition_gsutil = (partition_name) => {
     return `${dataset_gsutil()}/${partition_name}`;
   };
-  const partition_latest_path = () => {
-    return `./local/path/to/${latest_partition.partition_name}`;
+  const partition_local_path = () => {
+    let compression;
+    switch (dataset.compression) {
+      case "uncompressed":
+        break;
+      case "gzip":
+        compression = ".gz";
+        break;
+      case "zip":
+        compression = ".zip";
+        break;
+    }
+    return `./local/path/to/partition_file.${dataset.format}${compression}`;
   };
 
   $: partitions = partitions.sort((a, b) => {
@@ -162,10 +173,10 @@
               <br />
               <br />
               <Usage
-                comment={`find the latest partition of a dataset (GET /api/dataset/{dataset_name}/latest)`}
+                comment={`find the latest partition of the "${dataset_name}" dataset (GET /api/dataset/{dataset_name}/latest)`}
                 command={`curl ${dataset_api_latest()}`} />
               <Usage
-                comment={`list all partitions using optional parameters (GET /api/dataset/{dataset_name}?count={int}&offset={int}`}
+                comment={`list its partitions using optional parameters (GET /api/dataset/{dataset_name}?count={int}&offset={int})`}
                 command={`curl ${partitions_url}`} />
               <br />
               <br />
@@ -176,12 +187,12 @@
               <br />
               <br />
               <Usage
-                comment={`copy entire dataset from cloud storage using Google Cloud's
+                comment={`copy the entire "${dataset_name}" dataset from cloud storage using Google Cloud's
             \`gsutil\``}
                 command={`gsutil -m cp -r ${dataset_gsutil()} .`} />
               <Usage
-                comment={`create a new partition (after dataset is registered)`}
-                command={`gsutil cp ${partition_latest_path()} ${dataset_gsutil()}`} />
+                comment={`create a new partition for the "${dataset_name}" dataset`}
+                command={`gsutil cp ${partition_local_path()} ${dataset_gsutil()}`} />
             </p>
           </div>
         </div>
@@ -334,7 +345,7 @@
             comment={`find the latest partition of a dataset (GET /api/dataset/{dataset_name}/latest)`}
             command={`curl ${dataset_api_latest()}`} />
           <Usage
-            comment={`get a specific partition (GET /api/dataset/{dataset_name}/${latest_partition.name}`}
+            comment={`get a specific partition (GET /api/dataset/{dataset_name}/${latest_partition.name || '{partition_name}'})`}
             command={`curl ${partitions_url}`} />
           <br />
           <br />
@@ -349,8 +360,8 @@
         \`gsutil\``}
             command={`gsutil -m cp -r ${dataset_gsutil()} .`} />
           <Usage
-            comment={`create a new partition (after dataset is registered)`}
-            command={`gsutil cp ${partition_latest_path()} ${dataset_gsutil()}`} />
+            comment={`create a new partition (for this registered dataset "${dataset_name}")`}
+            command={`gsutil cp ${partition_local_path()} ${dataset_gsutil()}`} />
         </p>
       </div>
       {#each partitions as p, i}
