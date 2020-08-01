@@ -174,9 +174,9 @@ pub enum Compression {
     #[postgres(name = "zip")]
     #[serde(rename = "zip")]
     Zip,
-    #[postgres(name = "tar")]
-    #[serde(rename = "tar")]
-    Tar,
+    #[postgres(name = "gzip")]
+    #[serde(rename = "gzip")]
+    Gzip,
 }
 
 impl std::fmt::Display for Compression {
@@ -189,14 +189,14 @@ impl std::fmt::Display for Compression {
 fn test_display_compression() {
     assert_eq!("uncompressed", format!("{}", Compression::Uncompressed));
     assert_eq!("zip", format!("{}", Compression::Zip));
-    assert_eq!("tar", format!("{}", Compression::Tar));
+    assert_eq!("gzip", format!("{}", Compression::Gzip));
 }
 
 impl FileExt for Compression {
     fn to_ext(&self) -> &str {
         match self {
             Compression::Uncompressed => "",
-            Compression::Tar => "tar.gz",
+            Compression::Gzip => "tar.gz",
             Compression::Zip => "zip",
         }
     }
@@ -209,15 +209,15 @@ pub enum Classification {
     #[postgres(name = "confidential")]
     #[serde(rename = "confidential")]
     Confidential,
-    #[postgres(name = "sensitive")]
-    #[serde(rename = "sensitive")]
-    Sensitive,
-    #[postgres(name = "private")]
-    #[serde(rename = "private")]
-    Private,
+    #[postgres(name = "internal")]
+    #[serde(rename = "internal")]
+    Internal,
     #[postgres(name = "public")]
     #[serde(rename = "public")]
     Public,
+    #[postgres(name = "restricted")]
+    #[serde(rename = "restricted")]
+    Restricted,
 }
 
 impl std::fmt::Display for Classification {
@@ -229,9 +229,9 @@ impl std::fmt::Display for Classification {
 #[test]
 fn test_display_classification() {
     assert_eq!("confidential", format!("{}", Classification::Confidential));
-    assert_eq!("sensitive", format!("{}", Classification::Sensitive));
-    assert_eq!("private", format!("{}", Classification::Private));
+    assert_eq!("internal", format!("{}", Classification::Internal));
     assert_eq!("public", format!("{}", Classification::Public));
+    assert_eq!("restricted", format!("{}", Classification::Restricted));
 }
 
 /// A DatasetSchema is the "schema" key found in a dd.json config file

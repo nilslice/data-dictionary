@@ -31,7 +31,7 @@ async fn test_dataset() {
             &dataset_name,
             Compression::Uncompressed,
             Format::Json,
-            Classification::Sensitive,
+            Classification::Restricted,
             testutil::rand_schema(),
             &dataset_desc,
         )
@@ -59,7 +59,7 @@ async fn test_dataset() {
                 &testutil::get_rand(String(20)),
                 Compression::Zip,
                 Format::Csv,
-                Classification::Private,
+                Classification::Internal,
                 testutil::rand_schema(),
                 &testutil::get_rand(String(100)),
             )
@@ -74,7 +74,7 @@ async fn test_dataset() {
                 &testutil::get_rand(PartitionUrl(
                     Format::PlainText,
                     Compression::Uncompressed,
-                    Classification::Sensitive,
+                    Classification::Restricted,
                 )),
                 testutil::rand_size(),
             )
@@ -97,10 +97,10 @@ async fn test_dataset() {
     assert!(latest_result.is_err());
 
     // add a partition and validate latest partition exists
-    let partition_name = testutil::get_rand(PartitionName(Format::Protobuf, Compression::Tar));
+    let partition_name = testutil::get_rand(PartitionName(Format::Protobuf, Compression::Gzip));
     let partition_url = testutil::get_rand(PartitionUrl(
         Format::Protobuf,
-        Compression::Tar,
+        Compression::Gzip,
         Classification::Public,
     ));
     let dataset = all_datasets.first().unwrap();
@@ -130,7 +130,7 @@ async fn test_dataset() {
             testutil::get_rand(PartitionUrl(
                 Format::Csv,
                 Compression::Zip,
-                Classification::Private,
+                Classification::Internal,
             )),
             testutil::rand_size(),
         )
@@ -198,7 +198,7 @@ async fn test_module_integration() {
             dataset_name,
             Compression::Uncompressed,
             Format::Protobuf,
-            Classification::Sensitive,
+            Classification::Restricted,
             testutil::rand_schema(),
             dataset_desc,
         )
@@ -219,7 +219,7 @@ async fn test_module_integration() {
     let partition_url = testutil::get_rand(PartitionUrl(
         Format::Protobuf,
         Compression::Uncompressed,
-        Classification::Private,
+        Classification::Internal,
     ));
     // add a partition to the dataset
     let partition_size = testutil::rand_size();
@@ -260,7 +260,7 @@ async fn test_module_integration() {
         .register_dataset(
             &mut test_db.db,
             added_dataset_name,
-            Compression::Tar,
+            Compression::Gzip,
             Format::NdJson,
             Classification::Public,
             testutil::rand_schema(),
@@ -329,10 +329,10 @@ async fn test_module_integration() {
     let added_dataset_add_partition = added_dataset
         .register_partition(
             &mut test_db.db,
-            testutil::get_rand(PartitionName(Format::NdJson, Compression::Tar)),
+            testutil::get_rand(PartitionName(Format::NdJson, Compression::Gzip)),
             testutil::get_rand(PartitionUrl(
                 Format::NdJson,
-                Compression::Tar,
+                Compression::Gzip,
                 Classification::Public,
             )),
             testutil::rand_size(),
@@ -408,10 +408,10 @@ async fn test_range_query_partitions() {
         dataset
             .register_partition(
                 &mut test_db.db,
-                testutil::get_rand(PartitionName(Format::Protobuf, Compression::Tar)),
+                testutil::get_rand(PartitionName(Format::Protobuf, Compression::Gzip)),
                 testutil::get_rand(PartitionUrl(
                     Format::Protobuf,
-                    Compression::Tar,
+                    Compression::Gzip,
                     Classification::Public,
                 )),
                 testutil::rand_size(),
@@ -734,7 +734,7 @@ async fn test_attributes() {
     for expected in &[
         "protobuf",
         "ndjson",
-        "private",
+        "internal",
         "uncompressed",
         "confidential",
     ] {

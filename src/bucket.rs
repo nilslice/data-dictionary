@@ -13,9 +13,9 @@ use reqwest::{
 
 pub struct BucketManager {
     service_endpoint: String,
-    bucket_name_private: String,
+    bucket_name_internal: String,
     bucket_name_public: String,
-    bucket_name_sensitive: String,
+    bucket_name_restricted: String,
     bucket_name_confidential: String,
     client: GcpClient,
 }
@@ -26,12 +26,12 @@ impl BucketManager {
         Self {
             service_endpoint: env::var("DD_STORAGE_SERVICE")
                 .expect("DD_STORAGE_SERVICE environment variable not set"),
-            bucket_name_private: env::var("DD_BUCKET_NAME_PRIVATE")
+            bucket_name_internal: env::var("DD_BUCKET_NAME_PRIVATE")
                 .expect("DD_BUCKET_NAME_PRIVATE environment variable not set"),
             bucket_name_public: env::var("DD_BUCKET_NAME_PUBLIC")
                 .expect("DD_BUCKET_NAME_PUBLIC environment variable not set"),
-            bucket_name_sensitive: env::var("DD_BUCKET_NAME_SENSITIVE")
-                .expect("DD_BUCKET_NAME_SENSITIVE environment variable not set"),
+            bucket_name_restricted: env::var("DD_BUCKET_NAME_RESTRICTED")
+                .expect("DD_BUCKET_NAME_RESTRICTED environment variable not set"),
             bucket_name_confidential: env::var("DD_BUCKET_NAME_CONFIDENTIAL")
                 .expect("DD_BUCKET_NAME_CONFIDENTIAL environment variable not set"),
             client,
@@ -40,9 +40,9 @@ impl BucketManager {
 
     pub async fn register_dataset(&self, config: &DatasetConfig) -> Result<(), Error> {
         let bucket = match config.classification {
-            Classification::Private => &self.bucket_name_private,
+            Classification::Internal => &self.bucket_name_internal,
             Classification::Public => &self.bucket_name_public,
-            Classification::Sensitive => &self.bucket_name_sensitive,
+            Classification::Restricted => &self.bucket_name_restricted,
             Classification::Confidential => &self.bucket_name_confidential,
         };
         let url = format!(
@@ -98,13 +98,13 @@ impl BucketManager {
 impl From<&BucketManager> for HashMap<Classification, String> {
     fn from(bm: &BucketManager) -> Self {
         let mut buckets = HashMap::new();
-        buckets.insert(Classification::Private, bm.bucket_name_private.clone());
+        buckets.insert(Classification::Internal, bm.bucket_name_internal.clone());
         buckets.insert(Classification::Public, bm.bucket_name_public.clone());
         buckets.insert(
             Classification::Confidential,
             bm.bucket_name_confidential.clone(),
         );
-        buckets.insert(Classification::Sensitive, bm.bucket_name_sensitive.clone());
+        buckets.insert(Classification::Restricted, bm.bucket_name_restricted.clone());
         buckets
     }
 }

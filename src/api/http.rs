@@ -23,7 +23,7 @@ pub struct Server {
 }
 
 #[derive(Deserialize)]
-pub struct RegisterManager {
+pub struct AuthManager {
     email: String,
     password: String,
 }
@@ -47,7 +47,7 @@ impl From<Manager> for RestrictedManager {
 
 pub async fn register_manager(
     srv: Data<Server>,
-    params: Json<RegisterManager>,
+    params: Json<AuthManager>,
 ) -> Result<HttpResponse, Error> {
     let mut resp = HttpResponse::build(StatusCode::OK);
 
@@ -72,6 +72,43 @@ pub async fn register_manager(
                     StatusCode::BAD_REQUEST,
                     format!(
                         "failed to register manager, rejected input paramaters: {}",
+                        msg
+                    ),
+                )
+                .await
+            }
+            _ => json_message(resp, StatusCode::INTERNAL_SERVER_ERROR, msg).await,
+        }
+    }
+}
+
+pub async fn login_manager(
+    srv: Data<Server>,
+    params: Json<AuthManager>,
+) -> Result<HttpResponse, Error> {
+    let mut resp = HttpResponse::build(StatusCode::OK);
+
+    let manager = Manager::authenticate(&mut srv.db.clone(), &params.email, &params.password).await;
+    if let Ok(manager) = manager {
+        resp.json(RestrictedManager::from(manager)).await
+    } else {
+        let msg = format!("failed to log in manager with email '{}'", params.email);
+        let err = manager.err().expect("no manager error specified");
+        log::error!("{}: {}", msg, err);
+
+        match err {
+            DDError::Sql(_) => json_message(resp, StatusCode::NOT_FOUND, msg).await,
+            DDError::InputValidation(msg) => {
+                log::info!(
+                    "request handled, input: {} {}",
+                    &params.email,
+                    &params.password
+                );
+                json_message(
+                    resp,
+                    StatusCode::BAD_REQUEST,
+                    format!(
+                        "failed to log in manager, rejected input paramaters: {}",
                         msg
                     ),
                 )

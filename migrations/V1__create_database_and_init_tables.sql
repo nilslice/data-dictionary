@@ -13,9 +13,9 @@ CREATE TABLE IF NOT EXISTS managers (
 
 CREATE TYPE classification_t AS ENUM (
     'confidential',
-    'sensitive',
-    'private',
-    'public'
+    'internal',
+    'public',
+    'restricted'
 );
 
 CREATE TYPE format_t AS ENUM (
@@ -30,7 +30,7 @@ CREATE TYPE format_t AS ENUM (
 CREATE TYPE compression_t AS ENUM (
     'uncompressed',
     'zip',
-    'tar'
+    'gzip'
 );
 
 CREATE TABLE IF NOT EXISTS datasets (

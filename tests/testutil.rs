@@ -87,7 +87,7 @@ fn rand_partition_name(format: Format, comp: Compression) -> String {
 #[test]
 fn test_rand_partition_name() {
     assert!(rand_partition_name(Format::Protobuf, Compression::Uncompressed).ends_with(".pb"));
-    assert!(rand_partition_name(Format::Csv, Compression::Tar).ends_with(".csv.tar.gz"));
+    assert!(rand_partition_name(Format::Csv, Compression::Gzip).ends_with(".csv.tar.gz"));
 }
 
 fn rand_partition_url(format: Format, comp: Compression, class: Classification) -> String {
@@ -103,7 +103,7 @@ fn rand_partition_url(format: Format, comp: Compression, class: Classification) 
 fn test_rand_url() {
     println!(
         "{}",
-        rand_partition_url(Format::Json, Compression::Tar, Classification::Sensitive)
+        rand_partition_url(Format::Json, Compression::Gzip, Classification::Restricted)
     );
 }
 
